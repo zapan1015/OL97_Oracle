@@ -1,0 +1,7 @@
+# Oracle 19c 설치 미디어를 이 디렉토리에 배치하세요.
+# 필요 파일:
+#   LINUX.X64_193000_grid_home.zip  (Oracle Grid Infrastructure 19c)
+#   LINUX.X64_193000_db_home.zip    (Oracle Database 19c)
+#
+# 다운로드: https://edelivery.oracle.com
+# zip 파일은 .gitignore 에 의해 추적되지 않습니다.

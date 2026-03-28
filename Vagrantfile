@@ -41,8 +41,25 @@ PRIVATE_NET = "192.168.57"    # internal  : RAC Interconnect
 SATA_CTRL = "SATA Controller"
 
 # ── Directories ───────────────────────────────────────────────────────
-DISK_DIR = File.join(__dir__, ".vagrant", "disks")
+DISK_DIR     = File.join(__dir__, ".vagrant", "disks")
+ORACLE_SW_DIR = File.join(__dir__, "oracle")   # Oracle 설치 미디어 (host)
+
 FileUtils.mkdir_p(DISK_DIR)
+
+# Oracle SW 디렉토리 존재 및 파일 확인
+if File.directory?(ORACLE_SW_DIR)
+  oracle_files = Dir.glob(File.join(ORACLE_SW_DIR, "*.zip")).map { |f| File.basename(f) }
+  if oracle_files.empty?
+    puts "  [WARN] oracle/ 디렉토리는 있으나 zip 파일이 없습니다."
+  else
+    puts "  [INFO] Oracle SW 감지됨:"
+    oracle_files.each { |f| puts "         - #{f}" }
+  end
+  ORACLE_SW_AVAILABLE = true
+else
+  puts "  [WARN] oracle/ 디렉토리가 없습니다. 설치 미디어 없이 기동합니다."
+  ORACLE_SW_AVAILABLE = false
+end
 
 # ── Ansible SSH Key ────────────────────────────────────────────────────
 # Generated once at vagrant up, stored under .vagrant/ (gitignored).
@@ -75,27 +92,30 @@ HOSTS
 # storage1 is defined LAST    → Its Ansible installer runs after peers are up.
 VMS = [
   {
-    name:     "racnode1",
-    ip_pub:   "#{ISCSI_NET}.101",
-    ip_priv:  "#{PRIVATE_NET}.101",
-    memory:   4096,
-    cpus:     2,
-    disks:    [],
+    name:      "racnode1",
+    ip_pub:    "#{ISCSI_NET}.101",
+    ip_priv:   "#{PRIVATE_NET}.101",
+    memory:    4096,
+    cpus:      2,
+    disks:     [],
+    oracle_sw: true,   # Oracle Grid/DB 설치 미디어 마운트 (/oracle_sw)
   },
   {
-    name:     "racnode2",
-    ip_pub:   "#{ISCSI_NET}.102",
-    ip_priv:  "#{PRIVATE_NET}.102",
-    memory:   4096,
-    cpus:     2,
-    disks:    [],
+    name:      "racnode2",
+    ip_pub:    "#{ISCSI_NET}.102",
+    ip_priv:   "#{PRIVATE_NET}.102",
+    memory:    4096,
+    cpus:      2,
+    disks:     [],
+    oracle_sw: true,
   },
   {
-    name:    "storage1",
-    ip_pub:  "#{ISCSI_NET}.200",
-    ip_priv: nil,
-    memory:  2048,
-    cpus:    2,
+    name:      "storage1",
+    ip_pub:    "#{ISCSI_NET}.200",
+    ip_priv:   nil,
+    memory:    2048,
+    cpus:      2,
+    oracle_sw: false,  # iSCSI Target 전용 – 설치 미디어 불필요
     disks: [
       { port: 1, dev: "sdb", size_mb: 20_480 },   # 20 GB → +DATA
       { port: 2, dev: "sdc", size_mb: 20_480 },   # 20 GB → +DATA
@@ -128,6 +148,19 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         node.vm.network "private_network",
           ip:                 vm[:ip_priv],
           virtualbox__intnet: "rac-interconnect"
+      end
+
+      # ── Oracle Software Synced Folder (racnodes only) ────────────────
+      # Host: ./oracle/  →  Guest: /oracle_sw  (읽기 전용 마운트)
+      # 포함 파일:
+      #   LINUX.X64_193000_grid_home.zip  (Oracle 19c Grid Infrastructure)
+      #   LINUX.X64_193000_db_home.zip    (Oracle 19c Database)
+      if vm[:oracle_sw] && ORACLE_SW_AVAILABLE
+        node.vm.synced_folder ORACLE_SW_DIR, "/oracle_sw",
+          id:           "oracle-sw",
+          owner:        "vagrant",
+          group:        "vagrant",
+          mount_options: ["dmode=755", "fmode=644"]
       end
 
       # ── VirtualBox Provider ──────────────────────────────────────────
@@ -195,6 +228,13 @@ HOSTS_EOF
           fi
         fi
 
+        # Oracle SW 마운트 확인 (racnodes 전용)
+        if [ -d /oracle_sw ]; then
+          echo "  --> /oracle_sw 마운트 확인:"
+          ls -lh /oracle_sw/*.zip 2>/dev/null | awk '{print "      "$NF, $5}' || \
+            echo "      (zip 파일 없음)"
+        fi
+
         echo "==> [$(hostname)] Bootstrap done"
       SHELL
 
@@ -242,6 +282,9 @@ HOSTS_EOF
           echo "║  ansible-playbook ... playbooks/03_rac_prereq.yml    ║"
           echo "║  ansible-playbook ... playbooks/04_iscsi_initiator.yml║"
           echo "║  ansible-playbook ... playbooks/05_asm_disk.yml      ║"
+          echo "║                                                      ║"
+          echo "║  Oracle 설치 미디어 (racnode1/2 에서 확인):          ║"
+          echo "║    ls /oracle_sw/                                    ║"
           echo "╚══════════════════════════════════════════════════════╝"
         SHELL
 

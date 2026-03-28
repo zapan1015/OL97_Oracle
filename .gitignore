@@ -62,11 +62,16 @@ inventories/ec2/hosts.ini.local   # 실제 EC2 IP 기록 파일
 /tmp/ansible_facts/
 /tmp/ansible.log
 
-# ── Oracle 설치 파일 (용량 크고 라이선스 필요) ─────────────────────────
+# ── Oracle 설치 미디어 (용량 크고 라이선스 필요 – git 추적 제외) ────────
+# 실제 파일은 ./oracle/ 디렉토리에 별도 보관 후 vagrant up 으로 VM에 마운트
+oracle/*.zip
+oracle/*.tar.gz
+oracle/*.rpm
+oracle/p[0-9]*.zip
+# 아래 패턴은 전체 프로젝트 범위에서도 제외
 *.zip
 *.tar.gz
 *.tar.bz2
-*.rpm
 LINUX.X64_*.zip
 p[0-9]*.zip
 oracle_install/
