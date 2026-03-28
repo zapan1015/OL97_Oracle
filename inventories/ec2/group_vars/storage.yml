@@ -1,0 +1,20 @@
+---
+# ======================================================================
+#  EC2 storage 그룹 변수
+#  EC2 EBS 볼륨은 NVMe 또는 xvd* 경로로 노출됨
+# ======================================================================
+
+# ── EBS 볼륨 경로 (인스턴스 타입별 실제 경로 확인 필요) ────────────────
+# Nitro 기반 인스턴스 (m5, c5, r5 등): /dev/nvme1n1 형태
+# Xen 기반 인스턴스 (m4, c4 등):       /dev/xvdb 형태
+iscsi_disk_data1: "/dev/nvme1n1"   # 20 GB EBS → +DATA
+iscsi_disk_data2: "/dev/nvme2n1"   # 20 GB EBS → +DATA
+iscsi_disk_fra:   "/dev/nvme3n1"   # 10 GB EBS → +FRA
+
+iscsi_initiators:
+  - name: racnode1
+    iqn:  "iqn.2026-03.com.example:racnode1"
+  - name: racnode2
+    iqn:  "iqn.2026-03.com.example:racnode2"
+
+iscsi_auth_method: "none"

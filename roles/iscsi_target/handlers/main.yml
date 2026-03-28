@@ -1,0 +1,9 @@
+---
+- name: Save targetcli config
+  ansible.builtin.shell: targetcli saveconfig
+  changed_when: false
+
+- name: Restart target service
+  ansible.builtin.systemd:
+    name:  target
+    state: restarted

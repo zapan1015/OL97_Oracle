@@ -1,0 +1,16 @@
+---
+- name: Restart network
+  ansible.builtin.debug:
+    msg: "Network restart skipped (managed by NetworkManager)"
+
+- name: Restart chronyd
+  ansible.builtin.systemd:
+    name:  chronyd
+    state: restarted
+
+- name: Reboot if SELinux changed
+  ansible.builtin.reboot:
+    msg:              "Rebooting to apply SELinux changes"
+    reboot_timeout:   300
+    post_reboot_delay: 30
+  when: ansible_selinux.status != selinux_state

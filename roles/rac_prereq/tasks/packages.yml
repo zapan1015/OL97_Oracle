@@ -1,0 +1,15 @@
+---
+# Oracle 19c RAC 필수 패키지 설치
+
+- name: Install Oracle Database preinstall package
+  ansible.builtin.dnf:
+    name:  "{{ oracle_preinstall_pkg }}"
+    state: present
+  # oracle-database-preinstall-19c 는 OL9 에서 EPEL 없이 직접 설치 가능
+  # (Oracle Linux Yum 서버 기본 repo 포함)
+  ignore_errors: true   # 네트워크 없는 환경에서 계속 진행
+
+- name: Install additional RAC packages
+  ansible.builtin.dnf:
+    name:  "{{ rac_extra_packages }}"
+    state: present

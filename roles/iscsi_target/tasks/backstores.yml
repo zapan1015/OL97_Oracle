@@ -1,0 +1,24 @@
+---
+# Block backstore 생성 (sdb, sdc, sdd)
+# saveconfig.json 파싱 결과로 이미 존재하면 skip → 멱등성 보장
+
+- name: Create block backstore for data1 ({{ iscsi_disk_data1 }})
+  ansible.builtin.shell: |
+    targetcli /backstores/block create name=data1 dev={{ iscsi_disk_data1 }}
+  when: "'data1' not in existing_backstores"
+  changed_when: true
+  notify: Save targetcli config
+
+- name: Create block backstore for data2 ({{ iscsi_disk_data2 }})
+  ansible.builtin.shell: |
+    targetcli /backstores/block create name=data2 dev={{ iscsi_disk_data2 }}
+  when: "'data2' not in existing_backstores"
+  changed_when: true
+  notify: Save targetcli config
+
+- name: Create block backstore for fra ({{ iscsi_disk_fra }})
+  ansible.builtin.shell: |
+    targetcli /backstores/block create name=fra dev={{ iscsi_disk_fra }}
+  when: "'fra' not in existing_backstores"
+  changed_when: true
+  notify: Save targetcli config

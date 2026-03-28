@@ -1,0 +1,28 @@
+---
+# targetcli 설정 저장 및 검증
+
+- name: Save targetcli configuration
+  ansible.builtin.shell: targetcli saveconfig
+  changed_when: false
+
+- name: Restart target service
+  ansible.builtin.systemd:
+    name:  target
+    state: restarted
+  changed_when: false
+
+- name: Verify iSCSI target is listening on port {{ iscsi_target_port }}
+  ansible.builtin.shell: |
+    ss -tlnp | grep ':{{ iscsi_target_port }}'
+  register: iscsi_listen_check
+  changed_when: false
+  failed_when: iscsi_listen_check.rc != 0
+
+- name: Show targetcli summary
+  ansible.builtin.shell: targetcli ls
+  register: targetcli_ls
+  changed_when: false
+
+- name: Display targetcli configuration
+  ansible.builtin.debug:
+    msg: "{{ targetcli_ls.stdout_lines }}"

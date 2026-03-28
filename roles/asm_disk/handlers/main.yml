@@ -1,0 +1,8 @@
+---
+- name: Reload udev rules
+  ansible.builtin.command: udevadm control --reload-rules
+  changed_when: false
+
+- name: Trigger udev
+  ansible.builtin.command: udevadm trigger --type=devices --subsystem-match=block
+  changed_when: false

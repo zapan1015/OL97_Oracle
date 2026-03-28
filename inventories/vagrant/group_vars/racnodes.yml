@@ -1,0 +1,33 @@
+---
+# ======================================================================
+#  racnodes 그룹 변수 – Oracle RAC Node 공통
+# ======================================================================
+
+# ── iSCSI Initiator 설정 ───────────────────────────────────────────────
+# iscsi_target_iqn, iscsi_target_ip, iscsi_target_port → all.yml 상속
+
+# ── ASM 디스크 매핑 (udev symlink 생성 기준) ──────────────────────────
+# iSCSI 를 통해 연결된 디스크의 udev symlink 경로
+asm_disk_data1_symlink: "/dev/oracleasm/DATA1"
+asm_disk_data2_symlink: "/dev/oracleasm/DATA2"
+asm_disk_fra_symlink:   "/dev/oracleasm/FRA1"
+
+# ── ASM 디스크 그룹 정의 ───────────────────────────────────────────────
+asm_diskgroups:
+  - name:       "DATA"
+    redundancy:  "EXTERNAL"
+    disks:
+      - "{{ asm_disk_data1_symlink }}"
+      - "{{ asm_disk_data2_symlink }}"
+  - name:       "FRA"
+    redundancy:  "EXTERNAL"
+    disks:
+      - "{{ asm_disk_fra_symlink }}"
+
+# ── Oracle RAC 커널 파라미터 ───────────────────────────────────────────
+kernel_shmmax:  "4294967296"   # 4 GB
+kernel_shmall:  "1048576"
+kernel_shmmni:  "4096"
+
+# ── iSCSI 세션 자동 로그인 ─────────────────────────────────────────────
+iscsi_auto_login: true

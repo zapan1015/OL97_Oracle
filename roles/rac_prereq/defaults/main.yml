@@ -1,0 +1,69 @@
+---
+# rac_prereq role 기본값 (Oracle 19c 2-Node RAC 기준)
+
+# Oracle Database Preinstall 패키지 (자동으로 많은 prereq 설정)
+oracle_preinstall_pkg: "oracle-database-preinstall-19c"
+
+# 추가 패키지
+rac_extra_packages:
+  - ksh
+  - libnsl
+  - libaio
+  - libaio-devel
+  - numactl
+  - numactl-devel
+  - smartmontools
+
+# 커널 파라미터 (/etc/sysctl.d/97-oracle-rac.conf)
+oracle_sysctl_params:
+  kernel.shmmax:    "{{ kernel_shmmax | default('4294967296') }}"
+  kernel.shmall:    "{{ kernel_shmall | default('1048576') }}"
+  kernel.shmmni:    "{{ kernel_shmmni | default('4096') }}"
+  kernel.sem:       "250 32000 100 128"
+  fs.aio-max-nr:    "1048576"
+  fs.file-max:      "6815744"
+  net.ipv4.ip_local_port_range: "9000 65500"
+  net.core.rmem_default:        "262144"
+  net.core.rmem_max:            "4194304"
+  net.core.wmem_default:        "262144"
+  net.core.wmem_max:            "1048576"
+  vm.hugetlb_shm_group:         "54321"
+
+# Oracle 그룹 정의
+oracle_groups:
+  # oinstall/dba/oper 은 preinstall 패키지가 이미 생성 (GID 명시)
+  - { name: oinstall, gid: "{{ oinstall_gid }}" }
+  - { name: dba,      gid: "{{ dba_gid }}" }
+  - { name: oper,     gid: "{{ oper_gid }}" }
+  # ASM 그룹: preinstall 이 생성하지 않으므로 충돌 없는 GID 사용
+  - { name: asmadmin, gid: "{{ asmadmin_gid }}" }
+  - { name: asmdba,   gid: "{{ asmdba_gid }}" }
+  - { name: asmoper,  gid: "{{ asmoper_gid }}" }
+
+# Oracle 유저 정의
+oracle_users:
+  - name:    oracle
+    uid:     "{{ oracle_uid }}"
+    group:   oinstall
+    groups:  "dba,oper,asmdba"
+    comment: "Oracle Database Software Owner"
+    home:    /home/oracle
+    shell:   /bin/bash
+
+  - name:    grid
+    uid:     "{{ grid_uid }}"
+    group:   oinstall
+    groups:  "dba,asmadmin,asmdba,asmoper"
+    comment: "Oracle Grid Infrastructure Owner"
+    home:    /home/grid
+    shell:   /bin/bash
+
+# 디렉토리 구조
+oracle_directories:
+  - { path: "/u01",                           owner: root,   group: root,      mode: "0755" }
+  - { path: "/u01/app",                       owner: oracle, group: oinstall,  mode: "0775" }
+  - { path: "{{ oracle_base }}",              owner: oracle, group: oinstall,  mode: "0775" }
+  - { path: "{{ grid_base }}",                owner: grid,   group: oinstall,  mode: "0775" }
+  - { path: "{{ oracle_inv }}",               owner: oracle, group: oinstall,  mode: "0775" }
+  - { path: "{{ oracle_home }}",              owner: oracle, group: oinstall,  mode: "0775" }
+  - { path: "{{ grid_home }}",                owner: grid,   group: oinstall,  mode: "0775" }

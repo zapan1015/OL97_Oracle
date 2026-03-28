@@ -1,0 +1,37 @@
+---
+# Initiator ACL 등록 (racnode1, racnode2)
+# 각 IQN의 존재 여부를 saveconfig.json 에서 확인 후 조건부 추가
+
+- name: Get existing ACL IQNs from saveconfig
+  ansible.builtin.shell: |
+    python3 -c "
+    import json
+    with open('/etc/target/saveconfig.json') as f:
+        d = json.load(f)
+    target = next((t for t in d.get('targets', []) if t['wwn'] == '{{ iscsi_target_iqn }}'), None)
+    if target:
+        tpg = next((g for g in target.get('tpgs', []) if g['tag'] == 1), None)
+        if tpg:
+            acls = [a['node_wwn'] for a in tpg.get('node_acls', [])]
+            print(' '.join(acls))
+            raise SystemExit(0)
+    print('')
+    "
+  register: existing_acls_raw
+  changed_when: false
+  failed_when: false
+
+- name: Parse existing ACL list
+  ansible.builtin.set_fact:
+    existing_acl_iqns: "{{ existing_acls_raw.stdout.split() }}"
+
+- name: Create ACL for each initiator
+  ansible.builtin.shell: |
+    targetcli /iscsi/{{ iscsi_target_iqn }}/tpg1/acls \
+      create {{ item.iqn }}
+  loop: "{{ iscsi_initiators }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.iqn }})"
+  when: item.iqn not in existing_acl_iqns
+  changed_when: true
+  notify: Save targetcli config

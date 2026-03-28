@@ -1,0 +1,20 @@
+---
+# iscsi_target role 기본값 (inventory group_vars/storage.yml 에서 오버라이드)
+
+# Target IQN
+iscsi_target_iqn:  "iqn.2026-03.com.example:storage1"
+
+# 포탈 (0.0.0.0 = 모든 인터페이스, 특정 IP 바인딩 권장)
+iscsi_target_ip:   "0.0.0.0"
+iscsi_target_port: 3260
+
+# 백엔드 블록 디바이스
+iscsi_disk_data1: "/dev/sdb"
+iscsi_disk_data2: "/dev/sdc"
+iscsi_disk_fra:   "/dev/sdd"
+
+# Initiator ACL 목록
+iscsi_initiators: []
+
+# 인증 방식 (lab: none)
+iscsi_auth_method: "none"

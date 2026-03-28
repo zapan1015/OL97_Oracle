@@ -1,0 +1,18 @@
+---
+# iscsi_initiator role 기본값
+
+# Target 접속 정보 (inventory all.yml 에서 오버라이드)
+iscsi_target_iqn:  "iqn.2026-03.com.example:storage1"
+iscsi_target_ip:   "192.168.56.200"
+iscsi_target_port: 3260
+
+# Initiator IQN (inventory host_vars/{hostname}.yml 에서 오버라이드)
+iscsi_initiator_iqn: "iqn.2026-03.com.example:{{ inventory_hostname }}"
+
+# 자동 로그인 설정
+iscsi_auto_login: true
+
+# iscsid 설정값
+iscsid_startup_mode:       "automatic"
+iscsid_node_startup:       "automatic"
+iscsid_replacement_timeout: 120

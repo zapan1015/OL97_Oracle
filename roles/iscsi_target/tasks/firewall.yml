@@ -1,0 +1,10 @@
+---
+# iSCSI 포트 방화벽 개방
+
+- name: Open iSCSI port (TCP 3260) in firewalld
+  ansible.posix.firewalld:
+    port:      "{{ iscsi_target_port }}/tcp"
+    permanent: true
+    state:     enabled
+    immediate: true
+  when: firewalld_enabled | default(true) | bool

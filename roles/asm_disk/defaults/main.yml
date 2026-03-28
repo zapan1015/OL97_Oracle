@@ -1,0 +1,23 @@
+---
+# asm_disk role 기본값
+
+# udev rules 파일 경로
+udev_rules_file: "/etc/udev/rules.d/99-asm-disks.rules"
+
+# ASM 디스크 심볼릭링크 경로
+asm_disk_base_dir: "/dev/oracleasm"
+
+# ASM 디스크 소유자 (oracle 설치 전 사전 설정)
+asm_disk_owner: "oracle"
+asm_disk_group: "asmadmin"
+asm_disk_mode:  "0660"
+
+# iSCSI 디스크 매핑 (LUN 번호 기준)
+# LUN 0 = data1(sdb), LUN 1 = data2(sdc), LUN 2 = fra(sdd)
+asm_iscsi_disks:
+  - lun_name: "DATA1"
+    symlink:  "/dev/oracleasm/DATA1"
+  - lun_name: "DATA2"
+    symlink:  "/dev/oracleasm/DATA2"
+  - lun_name: "FRA1"
+    symlink:  "/dev/oracleasm/FRA1"

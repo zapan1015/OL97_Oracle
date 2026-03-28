@@ -1,0 +1,12 @@
+---
+# /etc/iscsi/initiatorname.iscsi 에 명시적 IQN 설정
+# host_vars 에 고정값으로 정의 – 재부팅/재설치 시에도 IQN 불변 보장
+
+- name: Set iSCSI initiator name
+  ansible.builtin.template:
+    src:   initiatorname.j2
+    dest:  /etc/iscsi/initiatorname.iscsi
+    owner: root
+    group: root
+    mode:  "0600"
+  notify: Restart iscsid

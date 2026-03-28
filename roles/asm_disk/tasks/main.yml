@@ -1,0 +1,27 @@
+---
+# asm_disk/tasks/main.yml
+
+- name: Create ASM disk base directory
+  ansible.builtin.file:
+    path:  "{{ asm_disk_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode:  "0755"
+  tags: [asm_disk, dir]
+
+- name: Collect iSCSI disk serial numbers for udev rules
+  ansible.builtin.import_tasks: collect_disk_info.yml
+  tags: [asm_disk, udev]
+
+- name: Deploy udev rules for ASM disks
+  ansible.builtin.import_tasks: udev_rules.yml
+  tags: [asm_disk, udev]
+
+- name: Reload udev and trigger
+  ansible.builtin.import_tasks: udev_reload.yml
+  tags: [asm_disk, udev]
+
+- name: Set ASM disk permissions
+  ansible.builtin.import_tasks: permissions.yml
+  tags: [asm_disk, permissions]

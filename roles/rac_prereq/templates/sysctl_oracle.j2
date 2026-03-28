@@ -1,0 +1,5 @@
+# /etc/sysctl.d/97-oracle-rac.conf
+# Managed by Ansible (rac_prereq role) – Oracle 19c RAC
+{% for param, value in oracle_sysctl_params.items() %}
+{{ param }} = {{ value }}
+{% endfor %}

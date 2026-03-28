@@ -1,0 +1,17 @@
+---
+# Chrony NTP 설정
+
+- name: Enable and start chronyd
+  ansible.builtin.systemd:
+    name:    chronyd
+    enabled: true
+    state:   started
+
+- name: Configure NTP servers in chrony.conf
+  ansible.builtin.template:
+    src:   chrony.conf.j2
+    dest:  /etc/chrony.conf
+    owner: root
+    group: root
+    mode:  "0644"
+  notify: Restart chronyd

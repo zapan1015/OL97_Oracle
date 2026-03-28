@@ -1,0 +1,46 @@
+---
+# ======================================================================
+#  Vagrant 환경 공통 변수 (all 그룹)
+#  EC2 환경에서는 inventories/ec2/group_vars/all.yml 로 오버라이드됨
+# ======================================================================
+
+# ── Ansible 접속 ────────────────────────────────────────────────────────
+ansible_user:                vagrant
+ansible_ssh_private_key_file: ~/.ssh/id_rsa_ansible
+ansible_ssh_common_args:     "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+ansible_python_interpreter:  /usr/bin/python3
+
+# ── iSCSI 공통 설정 ────────────────────────────────────────────────────
+iscsi_target_iqn:  "iqn.2026-03.com.example:storage1"
+iscsi_target_ip:   "192.168.56.200"
+iscsi_target_port: 3260
+
+# ── RAC 클러스터 기본 정보 ─────────────────────────────────────────────
+cluster_name:  "raclab"
+scan_name:     "raclab-scan"
+scan_ip:       "192.168.56.110"
+
+# ── 네트워크 인터페이스 이름 (환경별 오버라이드 가능) ─────────────────────
+public_iface:      "eth1"    # 192.168.56.x (iSCSI/Public)
+priv_iface:        "eth2"    # 192.168.57.x (RAC Interconnect, racnodes only)
+iscsi_iface:       "eth1"    # iSCSI 전용 인터페이스 (여기선 Public과 공유)
+
+# ── Oracle 설치 공통 경로 ───────────────────────────────────────────────
+oracle_base:   "/u01/app/oracle"
+grid_base:     "/u01/app/grid"
+oracle_home:   "/u01/app/oracle/product/19.0.0/dbhome_1"
+grid_home:     "/u01/app/19.0.0/grid"
+oracle_inv:    "/u01/app/oraInventory"
+
+# ── Oracle 유저/그룹 UID/GID (모든 노드 동일해야 함) ──────────────────
+oracle_uid:    54321
+oracle_gid:    54321
+grid_uid:      54322
+oinstall_gid:  54321
+dba_gid:       54322
+oper_gid:      54323
+# GID 54324~54326 은 oracle-database-preinstall-19c 가 선점
+# (backupdba=54324, dgdba=54325, kmdba=54326)
+asmadmin_gid:  54331
+asmdba_gid:    54332
+asmoper_gid:   54333

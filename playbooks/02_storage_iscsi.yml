@@ -1,0 +1,13 @@
+---
+# ======================================================================
+#  02_storage_iscsi.yml – iSCSI Target 구성 (LIO / targetcli)
+#  대상: storage 그룹 (storage1)
+# ======================================================================
+- name: "Storage – iSCSI Target (LIO/targetcli)"
+  hosts: storage
+  gather_facts: true
+  become: true
+
+  roles:
+    - role: iscsi_target
+      tags: [storage, iscsi, iscsi_target]

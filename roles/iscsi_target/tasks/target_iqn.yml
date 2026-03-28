@@ -1,0 +1,9 @@
+---
+# iSCSI Target IQN 생성
+
+- name: Create iSCSI target IQN
+  ansible.builtin.shell: |
+    targetcli /iscsi create {{ iscsi_target_iqn }}
+  when: iscsi_target_iqn not in existing_target_iqns
+  changed_when: true
+  notify: Save targetcli config

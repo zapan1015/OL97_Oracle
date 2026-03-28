@@ -1,0 +1,122 @@
+# ======================================================================
+#  .gitignore – Oracle RAC Lab (Vagrant + Ansible)
+#  보안 민감 파일 / 로컬 환경 파일 제외
+# ======================================================================
+
+# ── Vagrant ────────────────────────────────────────────────────────────
+.vagrant/
+*.box
+
+# ── SSH 키 / 인증서 / 자격증명 ──────────────────────────────────────────
+*.pem
+*.key
+*.rsa
+*.p12
+*.pfx
+*.crt
+*.cer
+*.csr
+id_rsa
+id_rsa_ansible
+id_rsa_*
+id_ed25519
+id_ed25519_*
+*.pub
+!roles/*/files/*.pub         # role 배포용 공개키는 허용
+
+# ── 환경변수 / 시크릿 파일 ─────────────────────────────────────────────
+.env
+.env.*
+*.env
+.secret
+*.secret
+secrets.yml
+secrets.yaml
+vault_pass.txt
+vault_password.txt
+.vault_pass
+.vault_password
+*_vault.yml
+*_vault.yaml
+vault/
+credentials.json
+credentials.yml
+
+# ── AWS / Cloud 자격증명 ───────────────────────────────────────────────
+.aws/
+aws_credentials
+*_access_key*
+*_secret_key*
+terraform.tfvars
+terraform.tfvars.json
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# ── Ansible 민감 파일 ──────────────────────────────────────────────────
+*.retry
+inventory/*/host_vars/*.secret.yml
+inventories/*/host_vars/*.secret.yml
+inventories/ec2/aws_ec2.yml       # 실제 EC2 동적 인벤토리 (IP 노출 방지)
+inventories/ec2/hosts.ini.local   # 실제 EC2 IP 기록 파일
+/tmp/ansible_facts/
+/tmp/ansible.log
+
+# ── Oracle 설치 파일 (용량 크고 라이선스 필요) ─────────────────────────
+*.zip
+*.tar.gz
+*.tar.bz2
+*.rpm
+LINUX.X64_*.zip
+p[0-9]*.zip
+oracle_install/
+oracle_media/
+swlib/
+
+# ── 로그 / 임시 파일 ───────────────────────────────────────────────────
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Python / 가상환경 ──────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.python-version
+
+# ── Claude Code / AI 도구 ─────────────────────────────────────────────
+.claude/
+
+# ── IDE / 에디터 ───────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+*.sublime-workspace
+*.sublime-project
+.history/
+
+# ── 노드 패키지 (molecule 테스트 등) ──────────────────────────────────
+node_modules/
+package-lock.json
+
+# ── Molecule 테스트 결과 ───────────────────────────────────────────────
+.molecule/
+molecule/**/molecule.yml.local
+
+# ── 로컬 오버라이드 설정 ───────────────────────────────────────────────
+ansible.cfg.local
+*.local.yml
+*.local.yaml
+local_vars.yml
+override.yml

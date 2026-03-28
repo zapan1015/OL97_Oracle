@@ -1,0 +1,21 @@
+---
+# ASM 디스크 소유자 및 권한 설정
+
+- name: Set ownership on ASM disk symlinks
+  ansible.builtin.file:
+    path:  "{{ item.symlink }}"
+    owner: "{{ asm_disk_owner }}"
+    group: "{{ asm_disk_group }}"
+    mode:  "{{ asm_disk_mode }}"
+  loop: "{{ asm_iscsi_disks }}"
+  loop_control:
+    label: "{{ item.symlink }}"
+  failed_when: false   # symlink 미존재 시 경고만
+
+- name: Set ownership on ASM disk directory
+  ansible.builtin.file:
+    path:  "{{ asm_disk_base_dir }}"
+    owner: "{{ asm_disk_owner }}"
+    group: "{{ asm_disk_group }}"
+    recurse: true
+  failed_when: false

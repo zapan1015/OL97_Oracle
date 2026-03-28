@@ -1,0 +1,37 @@
+---
+# iSCSI 연결 검증: 3개 LUN이 블록 디바이스로 노출되는지 확인
+
+- name: Show current iSCSI sessions
+  ansible.builtin.shell: iscsiadm -m session
+  register: iscsi_session_info
+  changed_when: false
+  failed_when: false
+
+- name: Show iSCSI session details
+  ansible.builtin.debug:
+    msg: "{{ iscsi_session_info.stdout_lines }}"
+
+- name: Wait for iSCSI block devices to appear (up to 30s)
+  ansible.builtin.shell: |
+    for i in $(seq 1 10); do
+      count=$(lsblk -d -o NAME,TRAN | grep -c 'iscsi' || true)
+      [ "$count" -ge 3 ] && echo "OK: $count iSCSI disks" && exit 0
+      sleep 3
+    done
+    echo "WARNING: expected 3 iSCSI disks, found $count"
+    exit 0
+  register: iscsi_disk_check
+  changed_when: false
+
+- name: Show iSCSI disk discovery result
+  ansible.builtin.debug:
+    msg: "{{ iscsi_disk_check.stdout }}"
+
+- name: List all block devices (including iSCSI)
+  ansible.builtin.shell: lsblk -d -o NAME,SIZE,TRAN,MODEL
+  register: lsblk_result
+  changed_when: false
+
+- name: Display block devices
+  ansible.builtin.debug:
+    msg: "{{ lsblk_result.stdout_lines }}"

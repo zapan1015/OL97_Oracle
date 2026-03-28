@@ -1,0 +1,55 @@
+# /etc/udev/rules.d/99-asm-disks.rules
+# Managed by Ansible (asm_disk role) – do not edit manually
+#
+# iSCSI 디스크를 고정된 symlink 경로로 매핑
+# /dev/oracleasm/DATA1, DATA2, FRA1 → Oracle ASM 디스크 그룹용
+
+{% set devs = iscsi_devs %}
+{% if devs | length >= 3 %}
+# DATA1 (LUN 0 – {{ devs[0] }})
+{% if disk_serial_map[devs[0]] is defined and disk_serial_map[devs[0]] %}
+ENV{ID_SERIAL}=="{{ disk_serial_map[devs[0]] }}", \
+  SUBSYSTEM=="block", \
+  SYMLINK+="oracleasm/DATA1", \
+  OWNER="{{ asm_disk_owner }}", \
+  GROUP="{{ asm_disk_group }}", \
+  MODE="{{ asm_disk_mode }}"
+{% else %}
+# FALLBACK: serial 미확인 – 디바이스명 기반 (비권장)
+KERNEL=="{{ devs[0] }}", SUBSYSTEM=="block", \
+  SYMLINK+="oracleasm/DATA1", \
+  OWNER="{{ asm_disk_owner }}", GROUP="{{ asm_disk_group }}", MODE="{{ asm_disk_mode }}"
+{% endif %}
+
+# DATA2 (LUN 1 – {{ devs[1] }})
+{% if disk_serial_map[devs[1]] is defined and disk_serial_map[devs[1]] %}
+ENV{ID_SERIAL}=="{{ disk_serial_map[devs[1]] }}", \
+  SUBSYSTEM=="block", \
+  SYMLINK+="oracleasm/DATA2", \
+  OWNER="{{ asm_disk_owner }}", \
+  GROUP="{{ asm_disk_group }}", \
+  MODE="{{ asm_disk_mode }}"
+{% else %}
+KERNEL=="{{ devs[1] }}", SUBSYSTEM=="block", \
+  SYMLINK+="oracleasm/DATA2", \
+  OWNER="{{ asm_disk_owner }}", GROUP="{{ asm_disk_group }}", MODE="{{ asm_disk_mode }}"
+{% endif %}
+
+# FRA1 (LUN 2 – {{ devs[2] }})
+{% if disk_serial_map[devs[2]] is defined and disk_serial_map[devs[2]] %}
+ENV{ID_SERIAL}=="{{ disk_serial_map[devs[2]] }}", \
+  SUBSYSTEM=="block", \
+  SYMLINK+="oracleasm/FRA1", \
+  OWNER="{{ asm_disk_owner }}", \
+  GROUP="{{ asm_disk_group }}", \
+  MODE="{{ asm_disk_mode }}"
+{% else %}
+KERNEL=="{{ devs[2] }}", SUBSYSTEM=="block", \
+  SYMLINK+="oracleasm/FRA1", \
+  OWNER="{{ asm_disk_owner }}", GROUP="{{ asm_disk_group }}", MODE="{{ asm_disk_mode }}"
+{% endif %}
+
+{% else %}
+# WARNING: {{ devs | length }} iSCSI devices found, expected 3
+# udev rules not generated – check iSCSI connection
+{% endif %}

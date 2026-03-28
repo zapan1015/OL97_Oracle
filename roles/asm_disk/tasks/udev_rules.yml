@@ -1,0 +1,14 @@
+---
+# udev rules 파일 생성
+# Serial 기반 persistent symlink 로 ASM 디스크 이름 고정
+
+- name: Deploy udev rules for ASM disks
+  ansible.builtin.template:
+    src:   99-asm-disks.rules.j2
+    dest:  "{{ udev_rules_file }}"
+    owner: root
+    group: root
+    mode:  "0644"
+  notify:
+    - Reload udev rules
+    - Trigger udev

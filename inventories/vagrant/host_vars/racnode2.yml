@@ -1,0 +1,11 @@
+---
+# racnode2 호스트 변수 (Vagrant)
+ansible_host:     "192.168.56.102"
+node_number:      2
+node_pub_ip:      "192.168.56.102"
+node_priv_ip:     "192.168.57.102"
+node_vip_ip:      "192.168.56.112"      # VIP (hosts 파일에 등록)
+node_vip_hostname: "racnode2-vip"
+
+# iSCSI Initiator IQN (명시적 고정 – 재부팅 시 변경 방지)
+iscsi_initiator_iqn: "iqn.2026-03.com.example:racnode2"

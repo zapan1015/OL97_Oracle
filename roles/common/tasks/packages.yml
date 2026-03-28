@@ -1,0 +1,13 @@
+---
+# 공통 패키지 설치
+
+- name: Install EPEL repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  ignore_errors: true   # EPEL 없는 환경(최소 OL9 등)에서 무시
+
+- name: Install common packages
+  ansible.builtin.dnf:
+    name: "{{ common_packages }}"
+    state: present

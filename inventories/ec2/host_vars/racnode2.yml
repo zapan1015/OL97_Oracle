@@ -1,0 +1,8 @@
+---
+ansible_host:      "RACNODE2_EC2_PRIVATE_IP"
+node_number:       2
+node_pub_ip:       "RACNODE2_EC2_PRIVATE_IP"
+node_priv_ip:      "RACNODE2_EC2_PRIV_ENI_IP"
+node_vip_ip:       "RACNODE2_EC2_VIP_IP"
+node_vip_hostname: "racnode2-vip"
+iscsi_initiator_iqn: "iqn.2026-03.com.example:racnode2"

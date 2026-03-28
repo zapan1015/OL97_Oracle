@@ -1,0 +1,38 @@
+---
+# iscsi_target/tasks/main.yml
+
+- name: Install targetcli and dependencies
+  ansible.builtin.import_tasks: packages.yml
+  tags: [iscsi_target, install]
+
+- name: Read current targetcli saveconfig
+  ansible.builtin.import_tasks: read_state.yml
+  tags: [iscsi_target, configure]
+
+- name: Configure iSCSI backstores
+  ansible.builtin.import_tasks: backstores.yml
+  tags: [iscsi_target, configure, backstores]
+
+- name: Configure iSCSI target IQN
+  ansible.builtin.import_tasks: target_iqn.yml
+  tags: [iscsi_target, configure, iqn]
+
+- name: Configure LUNs
+  ansible.builtin.import_tasks: luns.yml
+  tags: [iscsi_target, configure, luns]
+
+- name: Configure ACLs
+  ansible.builtin.import_tasks: acls.yml
+  tags: [iscsi_target, configure, acls]
+
+- name: Configure portal and TPG attributes
+  ansible.builtin.import_tasks: portals.yml
+  tags: [iscsi_target, configure, portals]
+
+- name: Configure firewall for iSCSI
+  ansible.builtin.import_tasks: firewall.yml
+  tags: [iscsi_target, firewall]
+
+- name: Save and verify targetcli config
+  ansible.builtin.import_tasks: save_verify.yml
+  tags: [iscsi_target, verify]

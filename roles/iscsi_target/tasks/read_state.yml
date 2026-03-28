@@ -1,0 +1,39 @@
+---
+# saveconfig.json 을 읽어 현재 구성 상태를 변수로 파싱
+# 이후 태스크에서 멱등성 조건 분기에 사용
+
+- name: Check if saveconfig.json exists
+  ansible.builtin.stat:
+    path: /etc/target/saveconfig.json
+  register: saveconfig_stat
+
+- name: Read saveconfig.json
+  ansible.builtin.slurp:
+    src: /etc/target/saveconfig.json
+  register: saveconfig_raw
+  when: saveconfig_stat.stat.exists
+
+- name: Parse saveconfig.json
+  ansible.builtin.set_fact:
+    saveconfig: >-
+      {{
+        (saveconfig_raw.content | b64decode | from_json)
+        if saveconfig_stat.stat.exists
+        else {'targets': [], 'storage_objects': []}
+      }}
+
+- name: Extract existing target IQNs
+  ansible.builtin.set_fact:
+    existing_target_iqns: >-
+      {{ saveconfig.targets | map(attribute='wwn') | list }}
+
+- name: Extract existing backstore names
+  ansible.builtin.set_fact:
+    existing_backstores: >-
+      {{ saveconfig.storage_objects | map(attribute='name') | list }}
+
+- name: Show current state
+  ansible.builtin.debug:
+    msg:
+      - "Existing targets   : {{ existing_target_iqns }}"
+      - "Existing backstores: {{ existing_backstores }}"

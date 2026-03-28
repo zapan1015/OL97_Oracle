@@ -1,0 +1,44 @@
+---
+# LUN 매핑: backstore → iSCSI Target TPG1
+# 이미 IQN이 존재하고 LUN이 있으면 skip
+
+- name: Get current LUN count for target
+  ansible.builtin.shell: |
+    python3 -c "
+    import json
+    with open('/etc/target/saveconfig.json') as f:
+        d = json.load(f)
+    target = next((t for t in d.get('targets', []) if t['wwn'] == '{{ iscsi_target_iqn }}'), None)
+    if target:
+        tpg = next((g for g in target.get('tpgs', []) if g['tag'] == 1), None)
+        print(len(tpg.get('luns', [])) if tpg else 0)
+    else:
+        print(0)
+    "
+  register: current_lun_count
+  changed_when: false
+  failed_when: false
+
+- name: Create LUN for data1
+  ansible.builtin.shell: |
+    targetcli /iscsi/{{ iscsi_target_iqn }}/tpg1/luns \
+      create /backstores/block/data1
+  when: (current_lun_count.stdout | default('0') | int) < 1
+  changed_when: true
+  notify: Save targetcli config
+
+- name: Create LUN for data2
+  ansible.builtin.shell: |
+    targetcli /iscsi/{{ iscsi_target_iqn }}/tpg1/luns \
+      create /backstores/block/data2
+  when: (current_lun_count.stdout | default('0') | int) < 2
+  changed_when: true
+  notify: Save targetcli config
+
+- name: Create LUN for fra
+  ansible.builtin.shell: |
+    targetcli /iscsi/{{ iscsi_target_iqn }}/tpg1/luns \
+      create /backstores/block/fra
+  when: (current_lun_count.stdout | default('0') | int) < 3
+  changed_when: true
+  notify: Save targetcli config

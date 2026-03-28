@@ -1,0 +1,33 @@
+---
+# TPG 속성 설정 및 포탈 구성
+# authentication=0  : CHAP 비활성화 (lab 환경)
+# generate_node_acls=0 : ACL 목록만 허용 (보안)
+# demo_mode_write_protect=0 : 쓰기 허용
+
+- name: Set TPG authentication=0 (no CHAP)
+  ansible.builtin.shell: |
+    targetcli /iscsi/{{ iscsi_target_iqn }}/tpg1 \
+      set attribute authentication=0
+  changed_when: false  # 멱등 – 같은 값을 다시 set 해도 무해
+  when: iscsi_auth_method == "none"
+  notify: Save targetcli config
+
+- name: Set TPG generate_node_acls=0 (ACL enforced)
+  ansible.builtin.shell: |
+    targetcli /iscsi/{{ iscsi_target_iqn }}/tpg1 \
+      set attribute generate_node_acls=0
+  changed_when: false
+  notify: Save targetcli config
+
+- name: Set TPG demo_mode_write_protect=0 (allow writes)
+  ansible.builtin.shell: |
+    targetcli /iscsi/{{ iscsi_target_iqn }}/tpg1 \
+      set attribute demo_mode_write_protect=0
+  changed_when: false
+  notify: Save targetcli config
+
+- name: Enable TPG
+  ansible.builtin.shell: |
+    targetcli /iscsi/{{ iscsi_target_iqn }}/tpg1 enable
+  changed_when: false
+  notify: Save targetcli config

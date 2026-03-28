@@ -1,0 +1,10 @@
+---
+# /etc/security/limits.d/97-oracle-rac.conf
+
+- name: Deploy Oracle security limits
+  ansible.builtin.template:
+    src:   limits_oracle.j2
+    dest:  /etc/security/limits.d/97-oracle-rac.conf
+    owner: root
+    group: root
+    mode:  "0644"

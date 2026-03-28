@@ -1,0 +1,14 @@
+---
+# ======================================================================
+#  05_asm_disk.yml – ASM 디스크 udev 규칙 + 권한 설정
+#  대상: racnodes 그룹 (racnode1, racnode2)
+#  의존성: 04_iscsi_initiator.yml 완료 후 실행
+# ======================================================================
+- name: "RAC – ASM Disk udev Rules & Permissions"
+  hosts: racnodes
+  gather_facts: true
+  become: true
+
+  roles:
+    - role: asm_disk
+      tags: [rac, asm, asm_disk]

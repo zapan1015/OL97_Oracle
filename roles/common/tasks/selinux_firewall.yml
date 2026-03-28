@@ -1,0 +1,21 @@
+---
+# SELinux 및 Firewalld 설정
+
+- name: Set SELinux to permissive (runtime)
+  ansible.posix.selinux:
+    policy: targeted
+    state:  "{{ selinux_state }}"
+  notify: Reboot if SELinux changed
+
+- name: Ensure SELinux config file matches
+  ansible.builtin.lineinfile:
+    path:   /etc/selinux/config
+    regexp: '^SELINUX='
+    line:   "SELINUX={{ selinux_state }}"
+
+- name: Enable and start firewalld
+  ansible.builtin.systemd:
+    name:    firewalld
+    enabled: true
+    state:   started
+  when: firewalld_enabled | bool

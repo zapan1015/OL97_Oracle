@@ -1,0 +1,13 @@
+---
+# ======================================================================
+#  01_bootstrap.yml – 모든 노드 공통 OS 기본 설정
+#  대상: all (storage1 + racnode1 + racnode2)
+# ======================================================================
+- name: "Bootstrap – Common OS Configuration"
+  hosts: all
+  gather_facts: true
+  become: true
+
+  roles:
+    - role: common
+      tags: [bootstrap, common]

@@ -1,0 +1,15 @@
+---
+# ======================================================================
+#  04_iscsi_initiator.yml – iSCSI Initiator 구성 및 Target 연결
+#  대상: racnodes 그룹 (racnode1, racnode2)
+#  의존성: 02_storage_iscsi.yml 완료 후 실행
+# ======================================================================
+- name: "RAC – iSCSI Initiator (connect to storage1 target)"
+  hosts: racnodes
+  gather_facts: true
+  become: true
+  serial: 1   # 노드 순서대로 직렬 처리 (iSCSI 세션 안정성)
+
+  roles:
+    - role: iscsi_initiator
+      tags: [rac, iscsi, iscsi_initiator]

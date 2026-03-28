@@ -1,0 +1,26 @@
+---
+# ======================================================================
+#  storage 그룹 변수 – iSCSI Target (LIO / targetcli)
+# ======================================================================
+
+# ── Block Device 경로 (VirtualBox 추가 디스크) ─────────────────────────
+iscsi_disk_data1: "/dev/sdb"   # 20 GB → +DATA
+iscsi_disk_data2: "/dev/sdc"   # 20 GB → +DATA
+iscsi_disk_fra:   "/dev/sdd"   # 10 GB → +FRA
+
+# ── iSCSI Target IQN ───────────────────────────────────────────────────
+# iscsi_target_iqn 은 all.yml 에서 상속
+
+# ── iSCSI Initiator 목록 (ACL 등록 대상) ──────────────────────────────
+iscsi_initiators:
+  - name: racnode1
+    iqn:  "iqn.2026-03.com.example:racnode1"
+  - name: racnode2
+    iqn:  "iqn.2026-03.com.example:racnode2"
+
+# ── iSCSI 인증 방식 (lab: 없음, prod: chap) ───────────────────────────
+iscsi_auth_method: "none"   # none | chap
+
+# ── CHAP 설정 (iscsi_auth_method=chap 일 때만 사용) ────────────────────
+# iscsi_chap_userid:   "racuser"
+# iscsi_chap_password: "changeme123"

@@ -1,0 +1,39 @@
+---
+# iSCSI Target 로그인
+# 이미 세션이 있으면 skip → 멱등성 보장
+
+- name: Check existing iSCSI sessions
+  ansible.builtin.shell: |
+    iscsiadm -m session 2>&1 | grep '{{ iscsi_target_iqn }}' || true
+  register: iscsi_sessions
+  changed_when: false
+
+- name: Login to iSCSI target
+  ansible.builtin.shell: |
+    iscsiadm -m node \
+      --targetname {{ iscsi_target_iqn }} \
+      --portal {{ iscsi_target_ip }}:{{ iscsi_target_port }} \
+      --login
+  when: iscsi_target_iqn not in iscsi_sessions.stdout
+  register: iscsi_login
+  changed_when: iscsi_login.rc == 0
+
+- name: Set node to auto-login on boot
+  ansible.builtin.shell: |
+    iscsiadm -m node \
+      --targetname {{ iscsi_target_iqn }} \
+      --portal {{ iscsi_target_ip }}:{{ iscsi_target_port }} \
+      -o update \
+      -n node.startup \
+      -v automatic
+  when: iscsi_auto_login | bool
+  changed_when: false
+
+# OL9/RHEL9 에서 iscsi.service 는 iscsi-init.service 의존성으로 직접 start 불가
+# iscsid + node.startup=automatic 으로 부팅 시 자동 로그인이 처리됨
+- name: Ensure iscsid is enabled for auto-login on boot
+  ansible.builtin.systemd:
+    name:    iscsid
+    enabled: true
+    state:   started
+  when: iscsi_auto_login | bool

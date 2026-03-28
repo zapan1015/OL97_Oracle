@@ -1,0 +1,4 @@
+---
+ansible_host:     "STORAGE1_EC2_PRIVATE_IP"
+ansible_user:     "ec2-user"
+node_pub_ip:      "STORAGE1_EC2_PRIVATE_IP"

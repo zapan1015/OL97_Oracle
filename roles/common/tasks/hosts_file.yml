@@ -1,0 +1,11 @@
+---
+# /etc/hosts 구성 (template 기반)
+
+- name: Deploy /etc/hosts from template
+  ansible.builtin.template:
+    src:   hosts.j2
+    dest:  /etc/hosts
+    owner: root
+    group: root
+    mode:  "0644"
+  notify: Restart network

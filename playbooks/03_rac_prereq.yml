@@ -1,0 +1,13 @@
+---
+# ======================================================================
+#  03_rac_prereq.yml – Oracle RAC 사전 요구사항
+#  대상: racnodes 그룹 (racnode1, racnode2)
+# ======================================================================
+- name: "RAC – Prerequisites (kernel, limits, users, directories)"
+  hosts: racnodes
+  gather_facts: true
+  become: true
+
+  roles:
+    - role: rac_prereq
+      tags: [rac, prereq, rac_prereq]

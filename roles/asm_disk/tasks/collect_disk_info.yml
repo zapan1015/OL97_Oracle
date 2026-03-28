@@ -1,0 +1,46 @@
+---
+# iSCSI 블록 디바이스의 SERIAL/WWN 정보를 수집하여 udev rules 생성에 사용
+# 재부팅 시 /dev/sdX 이름이 바뀌어도 udev serial 기반 symlink 는 영구 유지됨
+
+- name: Get list of iSCSI block devices
+  ansible.builtin.shell: |
+    lsblk -d -o NAME,TRAN --noheadings | awk '$2=="iscsi"{print $1}' | sort
+  register: iscsi_devs_raw
+  changed_when: false
+
+- name: Parse iSCSI device list
+  ansible.builtin.set_fact:
+    iscsi_devs: "{{ iscsi_devs_raw.stdout_lines | select('ne', '') | list }}"
+
+- name: Show discovered iSCSI devices
+  ansible.builtin.debug:
+    msg: "iSCSI block devices: {{ iscsi_devs }}"
+
+- name: Collect disk serial numbers
+  ansible.builtin.shell: |
+    udevadm info --query=all --name=/dev/{{ item }} \
+      | grep -E 'ID_SERIAL=|ID_SERIAL_SHORT=' \
+      | head -1 \
+      | sed 's/.*=//'
+  loop: "{{ iscsi_devs }}"
+  register: disk_serials_raw
+  changed_when: false
+
+- name: Build disk serial map
+  ansible.builtin.set_fact:
+    disk_serial_map: >-
+      {{
+        dict(
+          iscsi_devs
+          | zip(
+            disk_serials_raw.results
+            | map(attribute='stdout')
+            | map('trim')
+            | list
+          )
+        )
+      }}
+
+- name: Show disk serial map
+  ansible.builtin.debug:
+    msg: "Disk → Serial: {{ disk_serial_map }}"

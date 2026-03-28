@@ -1,0 +1,38 @@
+---
+# ======================================================================
+#  EC2 환경 공통 변수 – Vagrant all.yml 값을 오버라이드
+# ======================================================================
+
+# ── Ansible 접속 (EC2 기본값 – 필요 시 host_vars 에서 재정의) ──────────
+ansible_user:                "ec2-user"
+ansible_ssh_private_key_file: "~/.ssh/ec2_rac_key.pem"
+ansible_ssh_common_args:     "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+ansible_python_interpreter:  /usr/bin/python3
+
+# ── iSCSI 공통 설정 (EC2 ENI Private IP 로 교체) ─────────────────────
+iscsi_target_iqn:  "iqn.2026-03.com.example:storage1"
+iscsi_target_ip:   "STORAGE1_EC2_PRIVATE_IP"   # ← EC2 Private IP 기입
+iscsi_target_port: 3260
+
+# ── 네트워크 인터페이스 (EC2 단일 ENI 기준) ───────────────────────────
+public_iface:  "eth0"
+priv_iface:    "eth1"    # 두 번째 ENI (RAC Interconnect용 별도 ENI 권장)
+iscsi_iface:   "eth0"
+
+# ── Oracle 경로 (Vagrant 와 동일하게 유지) ────────────────────────────
+oracle_base: "/u01/app/oracle"
+grid_base:   "/u01/app/grid"
+oracle_home: "/u01/app/oracle/product/19.0.0/dbhome_1"
+grid_home:   "/u01/app/19.0.0/grid"
+oracle_inv:  "/u01/app/oraInventory"
+
+# ── Oracle 유저/그룹 UID/GID ──────────────────────────────────────────
+oracle_uid:   54321
+oracle_gid:   54321
+grid_uid:     54322
+oinstall_gid: 54321
+dba_gid:      54322
+oper_gid:     54323
+asmadmin_gid: 54324
+asmdba_gid:   54325
+asmoper_gid:  54326

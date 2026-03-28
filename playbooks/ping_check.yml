@@ -1,0 +1,41 @@
+---
+# ======================================================================
+#  ping_check.yml – Ansible 연결 및 sudo 권한 확인용 유틸리티
+#
+#  사용법:
+#    ansible-playbook -i inventories/vagrant/hosts.ini playbooks/ping_check.yml
+# ======================================================================
+- name: "Connectivity Check"
+  hosts: all
+  gather_facts: false
+  become: false
+
+  tasks:
+    - name: Ping all hosts
+      ansible.builtin.ping:
+      tags: [ping]
+
+    - name: Check become (sudo) works
+      ansible.builtin.command: whoami
+      become: true
+      register: whoami_result
+      changed_when: false
+      tags: [sudo]
+
+    - name: Show whoami result
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} → become user: {{ whoami_result.stdout }}"
+      tags: [sudo]
+
+    - name: Gather basic facts
+      ansible.builtin.setup:
+        gather_subset: [min]
+      tags: [facts]
+
+    - name: Show OS info
+      ansible.builtin.debug:
+        msg: >
+          {{ inventory_hostname }}:
+          {{ ansible_distribution }} {{ ansible_distribution_version }}
+          ({{ ansible_architecture }})
+      tags: [facts]

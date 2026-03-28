@@ -1,0 +1,22 @@
+---
+# rac_prereq/tasks/main.yml – Oracle RAC 사전 요구사항
+
+- name: Install Oracle preinstall package and extras
+  ansible.builtin.import_tasks: packages.yml
+  tags: [rac_prereq, packages]
+
+- name: Configure kernel parameters
+  ansible.builtin.import_tasks: kernel_params.yml
+  tags: [rac_prereq, kernel]
+
+- name: Configure security limits
+  ansible.builtin.import_tasks: limits.yml
+  tags: [rac_prereq, limits]
+
+- name: Create Oracle groups and users
+  ansible.builtin.import_tasks: users_groups.yml
+  tags: [rac_prereq, users]
+
+- name: Create Oracle directory structure
+  ansible.builtin.import_tasks: directories.yml
+  tags: [rac_prereq, dirs]

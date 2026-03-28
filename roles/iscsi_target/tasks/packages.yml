@@ -1,0 +1,13 @@
+---
+# targetcli 패키지 설치 및 서비스 활성화
+
+- name: Install targetcli package
+  ansible.builtin.dnf:
+    name:  targetcli
+    state: present
+
+- name: Enable and start target service
+  ansible.builtin.systemd:
+    name:    target
+    enabled: true
+    state:   started

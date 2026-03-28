@@ -1,0 +1,31 @@
+---
+# iscsi_initiator/tasks/main.yml
+
+- name: Install iSCSI initiator packages
+  ansible.builtin.import_tasks: packages.yml
+  tags: [iscsi_initiator, install]
+
+- name: Configure initiator name (IQN)
+  ansible.builtin.import_tasks: initiatorname.yml
+  tags: [iscsi_initiator, configure, iqn]
+
+- name: Configure iscsid.conf
+  ansible.builtin.import_tasks: iscsid_conf.yml
+  tags: [iscsi_initiator, configure]
+
+# IQN 변경이 있었으면 즉시 iscsid 재시작 – login 전에 반드시 반영
+- name: Flush handlers (restart iscsid if IQN changed)
+  ansible.builtin.meta: flush_handlers
+  tags: [iscsi_initiator, configure]
+
+- name: Discover and login to iSCSI target
+  ansible.builtin.import_tasks: discovery.yml
+  tags: [iscsi_initiator, connect, discovery]
+
+- name: Login to iSCSI target
+  ansible.builtin.import_tasks: login.yml
+  tags: [iscsi_initiator, connect, login]
+
+- name: Verify iSCSI disks are visible
+  ansible.builtin.import_tasks: verify.yml
+  tags: [iscsi_initiator, verify]

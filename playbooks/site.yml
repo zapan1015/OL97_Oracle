@@ -1,0 +1,30 @@
+---
+# ======================================================================
+#  site.yml – Oracle RAC Lab 전체 프로비저닝 오케스트레이터
+#
+#  실행 순서:
+#    01_bootstrap.yml      → 모든 노드 공통 OS 설정
+#    02_storage_iscsi.yml  → storage1: iSCSI Target 구성
+#    03_rac_prereq.yml     → racnodes: Oracle RAC 사전 요구사항
+#    04_iscsi_initiator.yml→ racnodes: iSCSI Initiator 연결
+#    05_asm_disk.yml       → racnodes: ASM 디스크 udev 심볼릭링크
+#
+#  사용법:
+#    ansible-playbook -i inventories/vagrant/hosts.ini playbooks/site.yml
+#    ansible-playbook -i inventories/ec2/hosts.ini     playbooks/site.yml
+# ======================================================================
+
+- name: "Phase 1 – OS Bootstrap (all nodes)"
+  import_playbook: 01_bootstrap.yml
+
+- name: "Phase 2 – iSCSI Target Setup (storage1)"
+  import_playbook: 02_storage_iscsi.yml
+
+- name: "Phase 3 – Oracle RAC Prerequisites (racnodes)"
+  import_playbook: 03_rac_prereq.yml
+
+- name: "Phase 4 – iSCSI Initiator (racnodes)"
+  import_playbook: 04_iscsi_initiator.yml
+
+- name: "Phase 5 – ASM Disk udev Rules (racnodes)"
+  import_playbook: 05_asm_disk.yml

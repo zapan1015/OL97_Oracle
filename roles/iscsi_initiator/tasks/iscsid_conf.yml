@@ -1,0 +1,16 @@
+---
+# iscsid.conf – 자동 로그인 및 타임아웃 설정
+
+- name: Set node.startup to automatic in iscsid.conf
+  ansible.builtin.lineinfile:
+    path:   /etc/iscsi/iscsid.conf
+    regexp: '^node.startup'
+    line:   "node.startup = {{ iscsid_node_startup }}"
+  notify: Restart iscsid
+
+- name: Set replacement_timeout in iscsid.conf
+  ansible.builtin.lineinfile:
+    path:   /etc/iscsi/iscsid.conf
+    regexp: '^node.session.timeo.replacement_timeout'
+    line:   "node.session.timeo.replacement_timeout = {{ iscsid_replacement_timeout }}"
+  notify: Restart iscsid

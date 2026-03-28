@@ -1,0 +1,24 @@
+---
+# common role 기본값
+common_packages:
+  - vim
+  - net-tools
+  - wget
+  - curl
+  - unzip
+  - lsof
+  - sysstat
+  - bind-utils
+  - chrony
+  - telnet
+
+# SELinux: permissive (Oracle RAC 권장)
+selinux_state: "permissive"
+
+# Firewalld: 활성화 (role 내에서 필요 포트만 개방)
+firewalld_enabled: true
+
+# NTP 서버
+ntp_servers:
+  - "2.pool.ntp.org"
+  - "time.google.com"

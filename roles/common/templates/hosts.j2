@@ -1,0 +1,23 @@
+# /etc/hosts – Managed by Ansible (common role)
+# Do not edit manually.
+
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+# ── Oracle RAC Lab ────────────────────────────────────────────────────
+
+# Storage / Ansible Master
+{{ iscsi_target_ip }}  storage1
+
+# RAC Public + VIP
+{{ hostvars['racnode1']['node_pub_ip'] }}  racnode1 racnode1-pub
+{{ hostvars['racnode2']['node_pub_ip'] }}  racnode2 racnode2-pub
+{{ hostvars['racnode1']['node_vip_ip'] }}  {{ hostvars['racnode1']['node_vip_hostname'] }}
+{{ hostvars['racnode2']['node_vip_ip'] }}  {{ hostvars['racnode2']['node_vip_hostname'] }}
+
+# RAC Private Interconnect
+{{ hostvars['racnode1']['node_priv_ip'] }}  racnode1-priv
+{{ hostvars['racnode2']['node_priv_ip'] }}  racnode2-priv
+
+# SCAN (Single Client Access Name)
+{{ scan_ip }}  {{ scan_name }}

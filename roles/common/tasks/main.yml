@@ -1,0 +1,18 @@
+---
+# common/tasks/main.yml – 모든 노드 공통 OS 설정
+
+- name: Install common packages
+  ansible.builtin.import_tasks: packages.yml
+  tags: [common, packages]
+
+- name: Configure /etc/hosts
+  ansible.builtin.import_tasks: hosts_file.yml
+  tags: [common, hosts]
+
+- name: Configure SELinux and Firewalld
+  ansible.builtin.import_tasks: selinux_firewall.yml
+  tags: [common, selinux, firewall]
+
+- name: Configure Chrony (NTP)
+  ansible.builtin.import_tasks: chrony.yml
+  tags: [common, ntp, chrony]

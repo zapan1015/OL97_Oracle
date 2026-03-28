@@ -1,0 +1,36 @@
+---
+# udev 규칙 즉시 적용 (handler 보완 – 직접 실행 보장)
+
+- name: Reload udev rules
+  ansible.builtin.command: udevadm control --reload-rules
+  changed_when: false
+
+- name: Trigger udev events for block devices
+  ansible.builtin.command: udevadm trigger --type=devices --subsystem-match=block
+  changed_when: false
+
+- name: Wait for udev symlinks to be created
+  ansible.builtin.wait_for:
+    path:    "{{ item.symlink }}"
+    timeout: 30
+  loop: "{{ asm_iscsi_disks }}"
+  loop_control:
+    label: "{{ item.symlink }}"
+  ignore_errors: true   # symlink 없어도 계속 진행 (후속 debug 로 확인)
+
+- name: Check ASM symlinks exist
+  ansible.builtin.stat:
+    path: "{{ item.symlink }}"
+  loop: "{{ asm_iscsi_disks }}"
+  loop_control:
+    label: "{{ item.symlink }}"
+  register: symlink_stats
+
+- name: Report symlink status
+  ansible.builtin.debug:
+    msg: >
+      {{ item.item.symlink }}:
+      {{ 'EXISTS' if item.stat.exists else 'MISSING – check udev rules' }}
+  loop: "{{ symlink_stats.results }}"
+  loop_control:
+    label: "{{ item.item.symlink }}"

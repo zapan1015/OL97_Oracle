@@ -1,0 +1,61 @@
+---
+# Oracle 그룹 및 유저 생성 (UID/GID 고정 – 모든 RAC 노드 동일해야 함)
+
+- name: Get list of existing group names
+  ansible.builtin.getent:
+    database: group
+  register: existing_groups_db
+
+- name: Create Oracle groups (skip if already exists by name)
+  ansible.builtin.group:
+    name:  "{{ item.name }}"
+    gid:   "{{ item.gid }}"
+    state: present
+  loop: "{{ oracle_groups }}"
+  loop_control:
+    label: "{{ item.name }} (gid={{ item.gid }})"
+  when: item.name not in (existing_groups_db.ansible_facts.getent_group | default({}))
+
+- name: Create Oracle users
+  ansible.builtin.user:
+    name:       "{{ item.name }}"
+    uid:        "{{ item.uid }}"
+    group:      "{{ item.group }}"
+    groups:     "{{ item.groups }}"
+    comment:    "{{ item.comment }}"
+    home:       "{{ item.home }}"
+    shell:      "{{ item.shell }}"
+    create_home: true
+    state:      present
+  loop: "{{ oracle_users }}"
+  loop_control:
+    label: "{{ item.name }} (uid={{ item.uid }})"
+
+- name: Set oracle user bash profile
+  ansible.builtin.blockinfile:
+    path:   "/home/oracle/.bash_profile"
+    create: true
+    owner:  oracle
+    group:  oinstall
+    mode:   "0644"
+    marker: "# {mark} ANSIBLE MANAGED – Oracle env"
+    block: |
+      export ORACLE_BASE={{ oracle_base }}
+      export ORACLE_HOME={{ oracle_home }}
+      export ORACLE_SID=racdb1
+      export PATH=$ORACLE_HOME/bin:$PATH
+      export LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib
+
+- name: Set grid user bash profile
+  ansible.builtin.blockinfile:
+    path:   "/home/grid/.bash_profile"
+    create: true
+    owner:  grid
+    group:  oinstall
+    mode:   "0644"
+    marker: "# {mark} ANSIBLE MANAGED – Grid env"
+    block: |
+      export ORACLE_BASE={{ grid_base }}
+      export GRID_HOME={{ grid_home }}
+      export PATH=$GRID_HOME/bin:$PATH
+      export LD_LIBRARY_PATH=$GRID_HOME/lib:/lib:/usr/lib

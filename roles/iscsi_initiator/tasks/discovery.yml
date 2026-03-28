@@ -1,0 +1,27 @@
+---
+# iSCSI Target 디스커버리
+# iscsid 재시작 → 구 node DB 삭제 → 재디스커버리 → 정확한 IQN으로 연결 보장
+
+- name: Restart iscsid to reload IQN from file
+  ansible.builtin.systemd:
+    name:  iscsid
+    state: restarted
+  changed_when: false
+
+- name: Delete stale node DB entries (prevents old-IQN auth failures)
+  ansible.builtin.shell: |
+    iscsiadm -m node -o delete 2>/dev/null || true
+  changed_when: false
+
+- name: Discover iSCSI targets on storage1
+  ansible.builtin.shell: |
+    iscsiadm -m discovery \
+      -t sendtargets \
+      -p {{ iscsi_target_ip }}:{{ iscsi_target_port }}
+  register: iscsi_discovery
+  changed_when: false
+  failed_when: iscsi_discovery.rc != 0
+
+- name: Show discovered targets
+  ansible.builtin.debug:
+    msg: "{{ iscsi_discovery.stdout_lines }}"

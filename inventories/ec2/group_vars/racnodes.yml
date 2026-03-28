@@ -1,0 +1,25 @@
+---
+# ======================================================================
+#  EC2 racnodes 그룹 변수
+# ======================================================================
+
+asm_disk_data1_symlink: "/dev/oracleasm/DATA1"
+asm_disk_data2_symlink: "/dev/oracleasm/DATA2"
+asm_disk_fra_symlink:   "/dev/oracleasm/FRA1"
+
+asm_diskgroups:
+  - name:       "DATA"
+    redundancy:  "EXTERNAL"
+    disks:
+      - "{{ asm_disk_data1_symlink }}"
+      - "{{ asm_disk_data2_symlink }}"
+  - name:       "FRA"
+    redundancy:  "EXTERNAL"
+    disks:
+      - "{{ asm_disk_fra_symlink }}"
+
+kernel_shmmax: "4294967296"
+kernel_shmall: "1048576"
+kernel_shmmni: "4096"
+
+iscsi_auto_login: true
