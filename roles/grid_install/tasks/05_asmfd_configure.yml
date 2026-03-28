@@ -1,0 +1,90 @@
+---
+# ======================================================================
+#  05_asmfd_configure.yml – ASMFD 커널 모듈 로드 및 구성
+#  ⚠ 기존 ASMLIB(oracleasm) 설치 시 사전 제거 필요
+#  실행: root, 양 노드
+# ======================================================================
+
+# ── ASMLIB 제거 (존재 시) ─────────────────────────────────────────────
+- name: "[GI-05] oracleasm 모듈 로드 여부 확인"
+  ansible.builtin.shell: lsmod | grep oracleasm || true
+  register: asmlib_loaded
+  changed_when: false
+
+- name: "[GI-05] ASMLIB 패키지 제거 (ASMFD 충돌 방지)"
+  ansible.builtin.dnf:
+    name:
+      - oracleasm-support
+      - oracleasmlib
+      - kmod-oracleasm
+    state: absent
+  when: "'oracleasm' in asmlib_loaded.stdout"
+  register: asmlib_remove
+
+- name: "[GI-05] ASMLIB 제거 완료"
+  ansible.builtin.debug:
+    msg: "ASMLIB 제거 완료 – ASMFD로 전환"
+  when: asmlib_remove.changed is defined and asmlib_remove.changed
+
+# ── ASMFD 커널 모듈 로드 ─────────────────────────────────────────────
+- name: "[GI-05] oracleafd 모듈 현재 로드 여부 확인"
+  ansible.builtin.shell: lsmod | grep oracleafd || true
+  register: afd_module_check
+  changed_when: false
+
+- name: "[GI-05] ASMFD 구성 실행 (asmcmd afd_configure)"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export ORACLE_BASE=/tmp
+    export PATH=$ORACLE_HOME/bin:$PATH
+    $ORACLE_HOME/bin/asmcmd afd_configure 2>&1
+  register: afd_configure_result
+  changed_when: "'AFD-9409' not in afd_configure_result.stdout"
+  # AFD-9409: ASMFD already configured
+  when: "'oracleafd' not in afd_module_check.stdout"
+  failed_when:
+    - afd_configure_result.rc != 0
+    - "'AFD-9409' not in afd_configure_result.stdout"
+
+- name: "[GI-05] ASMFD 구성 결과 출력"
+  ansible.builtin.debug:
+    msg: "{{ afd_configure_result.stdout_lines | default(['ASMFD 이미 구성됨']) }}"
+  when: afd_configure_result is not skipped
+
+# ── oracleafd 모듈 로드 확인 ─────────────────────────────────────────
+- name: "[GI-05] oracleafd 커널 모듈 로드 확인"
+  ansible.builtin.shell: lsmod | grep oracleafd
+  register: afd_loaded_check
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-05] oracleafd 모듈 수동 로드 (자동 로드 실패 시)"
+  ansible.builtin.shell: |
+    modprobe oracleafd 2>&1 || true
+    lsmod | grep oracleafd
+  register: afd_modprobe
+  changed_when: true
+  when: afd_loaded_check.rc != 0
+
+- name: "[GI-05] AFD 상태 최종 확인"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export ORACLE_BASE=/tmp
+    export PATH=$ORACLE_HOME/bin:$PATH
+    $ORACLE_HOME/bin/asmcmd afd_state 2>&1
+  register: afd_state
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-05] AFD 상태 출력"
+  ansible.builtin.debug:
+    msg: "AFD 상태: {{ afd_state.stdout_lines }}"
+
+# ── 부팅 시 자동 로드 설정 ─────────────────────────────────────────────
+- name: "[GI-05] oracleafd 모듈 부팅 자동 로드 설정"
+  ansible.builtin.copy:
+    content: "oracleafd\n"
+    dest: /etc/modules-load.d/oracleafd.conf
+    owner: root
+    group: root
+    mode: '0644'

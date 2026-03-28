@@ -1,0 +1,98 @@
+---
+# ======================================================================
+#  01_directories.yml – 디렉토리 생성 및 /etc/hosts VIP/SCAN 추가
+#  실행: root, 양 노드 (racnodes)
+# ======================================================================
+
+- name: "[GI-01] 기본 마운트 포인트 /u01 생성"
+  ansible.builtin.file:
+    path: /u01
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: "[GI-01] Oracle/Grid 공통 상위 디렉토리 생성"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: oinstall
+    mode: '0775'
+  loop:
+    - /u01/app
+
+- name: "[GI-01] Oracle Base 디렉토리 생성"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: oracle
+    group: oinstall
+    mode: '0775'
+  loop:
+    - "{{ oracle_base }}"
+    - "{{ oracle_base }}/product"
+    - "{{ oracle_base }}/product/19.0.0"
+    - "{{ oracle_home }}"
+
+- name: "[GI-01] Grid Base 디렉토리 생성"
+  ansible.builtin.file:
+    path: "{{ grid_base }}"
+    state: directory
+    owner: "{{ grid_user }}"
+    group: oinstall
+    mode: '0775'
+
+- name: "[GI-01] Grid Home 디렉토리 생성 (19.0.0/grid)"
+  ansible.builtin.file:
+    path: "{{ grid_home }}"
+    state: directory
+    owner: "{{ grid_user }}"
+    group: oinstall
+    mode: '0775'
+
+- name: "[GI-01] Oracle Inventory 디렉토리 생성"
+  ansible.builtin.file:
+    path: "{{ oracle_inv }}"
+    state: directory
+    owner: "{{ grid_user }}"
+    group: oinstall
+    mode: '0775'
+
+- name: "[GI-01] Grid 진단 디렉토리 생성"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ grid_user }}"
+    group: oinstall
+    mode: '0775'
+  loop:
+    - "{{ grid_base }}/diag"
+    - "{{ grid_base }}/diag/crs"
+
+- name: "[GI-01] /etc/oraInst.loc 생성 (Oracle Inventory 위치 등록)"
+  ansible.builtin.copy:
+    content: |
+      inventory_loc={{ oracle_inv }}
+      inst_group=oinstall
+    dest: /etc/oraInst.loc
+    owner: root
+    group: oinstall
+    mode: '0644'
+  # 이미 존재하면 내용이 다를 때만 변경
+  register: orainst_loc_result
+
+- name: "[GI-01] /etc/hosts – VIP 및 SCAN 항목 추가 (중복 시 skip)"
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} Oracle RAC VIP & SCAN (managed by Ansible)"
+    block: |
+      {{ scan_ip }}       {{ scan_name }} {{ scan_name }}.example.com
+      192.168.56.111      racnode1-vip
+      192.168.56.112      racnode2-vip
+    state: present
+  register: hosts_vip_result
+
+- name: "[GI-01] SCAN/VIP 등록 결과 출력"
+  ansible.builtin.debug:
+    msg: "VIP/SCAN /etc/hosts 항목 {{ '추가됨' if hosts_vip_result.changed else '이미 존재' }}"

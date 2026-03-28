@@ -1,0 +1,78 @@
+---
+# ======================================================================
+#  roles/grid_install/defaults/main.yml
+#  Oracle Grid Infrastructure Silent Mode 설치 – 기본 변수
+#  환경별 오버라이드: inventories/vagrant|ec2/group_vars/racnodes.yml
+# ======================================================================
+
+# ── Oracle 소프트웨어 경로 ─────────────────────────────────────────────
+oracle_sw_path:      "/oracle_sw"                          # VM 내 마운트 경로
+grid_zip:            "LINUX.X64_193000_grid_home.zip"      # GI 19c base zip
+opatch_zip:          ""          # OPatch zip 파일명 (없으면 업데이트 스킵)
+                                 # 예: "p6880880_190000_Linux-x86-64.zip"
+
+# ── RU (Release Update) 패치 경로 ─────────────────────────────────────
+# OL9 지원: 19.19+ RU 필수 (2026년 기준 19.26 이상 권장)
+# 비어 있으면 -applyRU 생략 (OL9 환경에서는 반드시 지정할 것)
+# 예: "/oracle_sw/patches/35643882"  (패치 번호는 RU 버전에 따라 다름)
+grid_ru_patch_dir:   ""
+
+# ── 설치 경로 ─────────────────────────────────────────────────────────
+grid_home:           "/u01/app/19.0.0/grid"
+grid_base:           "/u01/app/grid"
+oracle_inv:          "/u01/app/oraInventory"
+oracle_base:         "/u01/app/oracle"
+oracle_home:         "/u01/app/oracle/product/19.0.0/dbhome_1"
+
+# ── 클러스터 설정 ─────────────────────────────────────────────────────
+cluster_name:        "raclab"
+scan_name:           "raclab-scan"
+scan_ip:             "192.168.56.110"
+scan_port:           1521
+
+# ── 네트워크 인터페이스 ───────────────────────────────────────────────
+# OL9 VirtualBox: NIC2=enp0s8(Public), NIC3=enp0s9(Private)
+# all.yml 의 public_iface / priv_iface 변수로 오버라이드 가능
+public_subnet:       "192.168.56.0"
+priv_subnet:         "192.168.57.0"
+
+# ── ASMFD 디스크 라벨 정의 ────────────────────────────────────────────
+# iSCSI raw disk → ASMFD label (racnode1에서만 라벨링, 공유 디스크 자동 전파)
+# ⚠ 기존 udev 심볼릭 링크(/dev/oracleasm/*)와 병행 불가 – ASMFD 전용으로 전환
+afd_disks:
+  - label:  "GRID_0001"     # OCR + Voting Disk (GI 설치 시 생성)
+    device: "/dev/sdb"      # 20 GB
+  - label:  "DATA_0001"     # DATA diskgroup (DB 설치 시 생성)
+    device: "/dev/sdc"      # 20 GB
+  - label:  "FRA_0001"      # FRA diskgroup (DB 설치 시 생성)
+    device: "/dev/sdd"      # 10 GB
+
+# ── GRID 디스크 그룹 (GI 설치 중 생성 – OCR + Voting) ────────────────
+grid_dg_name:        "GRID"
+grid_dg_redundancy:  "EXTERNAL"
+grid_dg_au_size:     4
+grid_dg_disks:       ["AFD:GRID_0001"]
+
+# ── Oracle 유저/그룹 ──────────────────────────────────────────────────
+grid_user:           "grid"
+oracle_user:         "oracle"
+oinstall_group:      "oinstall"
+dba_group:           "dba"
+oper_group:          "oper"
+asmadmin_group:      "asmadmin"
+asmdba_group:        "asmdba"
+asmoper_group:       "asmoper"
+racdba_group:        "racdba"
+
+# ── 응답 파일 경로 ────────────────────────────────────────────────────
+gi_rsp_file:         "/tmp/gridSetup_rac.rsp"
+
+# ── CVU 옵션 ──────────────────────────────────────────────────────────
+cvu_ignore_failures: true   # 테스트 랩: CVU 경고 무시 (운영: false)
+
+# ── 타임아웃(초) ──────────────────────────────────────────────────────
+unzip_timeout:       1800   # 30분 (대용량 zip)
+opatch_timeout:      300    # 5분
+install_timeout:     7200   # 2시간 (RU 포함 시 더 소요될 수 있음)
+rootsh_timeout:      1800   # 30분 (node당)
+configtools_timeout: 1200   # 20분

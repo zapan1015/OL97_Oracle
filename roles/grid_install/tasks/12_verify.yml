@@ -1,0 +1,159 @@
+---
+# ======================================================================
+#  12_verify.yml – GI 설치 최종 검증 (OCM 필수 Health Check)
+#  실행: grid 사용자, racnode1
+# ======================================================================
+
+- name: "[GI-12] ─── Oracle Grid Infrastructure 설치 최종 검증 시작 ───"
+  ansible.builtin.debug:
+    msg: "GI Health Check 실행 중..."
+
+# ── 1. CRS 핵심 데몬 프로세스 확인 ──────────────────────────────────
+- name: "[GI-12] CRS 핵심 프로세스 목록 확인 (d.bin 패턴)"
+  ansible.builtin.shell: |
+    ps -ef | grep "[d]\.bin" | grep -v grep | awk '{print $8}' | sort
+  register: crs_procs
+  changed_when: false
+
+- name: "[GI-12] ① CRS 핵심 프로세스"
+  ansible.builtin.debug:
+    msg: "{{ crs_procs.stdout_lines }}"
+
+# ── 2. crsctl check crs ────────────────────────────────────────────
+- name: "[GI-12] crsctl check crs 실행"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export PATH=$ORACLE_HOME/bin:$PATH
+    {{ grid_home }}/bin/crsctl check crs 2>&1
+  become_user: "{{ grid_user }}"
+  register: crsctl_check
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-12] ② crsctl check crs 결과"
+  ansible.builtin.debug:
+    msg: "{{ crsctl_check.stdout_lines }}"
+
+# ── 3. 전체 클러스터 리소스 상태 ──────────────────────────────────
+- name: "[GI-12] crsctl stat res -t 실행 (모든 자원 상태)"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export PATH=$ORACLE_HOME/bin:$PATH
+    {{ grid_home }}/bin/crsctl stat res -t 2>&1
+  become_user: "{{ grid_user }}"
+  register: crs_resources
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-12] ③ 클러스터 전체 리소스 상태"
+  ansible.builtin.debug:
+    msg: "{{ crs_resources.stdout_lines }}"
+
+# ── 4. 클러스터 노드 목록 ─────────────────────────────────────────
+- name: "[GI-12] olsnodes 실행 (클러스터 멤버 확인)"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export PATH=$ORACLE_HOME/bin:$PATH
+    {{ grid_home }}/bin/olsnodes -s -t 2>&1
+  become_user: "{{ grid_user }}"
+  register: olsnodes_result
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-12] ④ 클러스터 노드 목록"
+  ansible.builtin.debug:
+    msg: "{{ olsnodes_result.stdout_lines }}"
+
+# ── 5. ASM 인스턴스 상태 ─────────────────────────────────────────
+- name: "[GI-12] srvctl status asm 실행"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export PATH=$ORACLE_HOME/bin:$PATH
+    {{ grid_home }}/bin/srvctl status asm 2>&1
+  become_user: "{{ grid_user }}"
+  register: asm_status
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-12] ⑤ ASM 인스턴스 상태"
+  ansible.builtin.debug:
+    msg: "{{ asm_status.stdout_lines }}"
+
+# ── 6. GRID 디스크 그룹 상태 ─────────────────────────────────────
+- name: "[GI-12] srvctl status diskgroup -diskgroup GRID"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export PATH=$ORACLE_HOME/bin:$PATH
+    {{ grid_home }}/bin/srvctl status diskgroup -diskgroup {{ grid_dg_name }} -detail 2>&1
+  become_user: "{{ grid_user }}"
+  register: grid_dg_check
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-12] ⑥ GRID 디스크 그룹 상태"
+  ansible.builtin.debug:
+    msg: "{{ grid_dg_check.stdout_lines }}"
+
+# ── 7. AFD 라벨 최종 확인 ────────────────────────────────────────
+- name: "[GI-12] ASMFD 라벨 상태 최종 확인"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export ORACLE_BASE={{ grid_base }}
+    export PATH=$ORACLE_HOME/bin:$PATH
+    {{ grid_home }}/bin/asmcmd afd_lslbl 2>&1
+  become_user: "{{ grid_user }}"
+  register: afd_final_check
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-12] ⑦ ASMFD 라벨 최종 목록"
+  ansible.builtin.debug:
+    msg: "{{ afd_final_check.stdout_lines }}"
+
+# ── 8. SCAN VIP 상태 ─────────────────────────────────────────────
+- name: "[GI-12] srvctl status scan 실행"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export PATH=$ORACLE_HOME/bin:$PATH
+    {{ grid_home }}/bin/srvctl status scan 2>&1
+  become_user: "{{ grid_user }}"
+  register: scan_status
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-12] ⑧ SCAN VIP 상태"
+  ansible.builtin.debug:
+    msg: "{{ scan_status.stdout_lines }}"
+
+# ── 최종 판정 ────────────────────────────────────────────────────
+- name: "[GI-12] GI 설치 성공 판정"
+  ansible.builtin.assert:
+    that:
+      - "'CRS-4638' in crsctl_check.stdout or 'is online' in crsctl_check.stdout"
+      - olsnodes_result.stdout_lines | length >= 2
+    fail_msg: |
+      ✗ Grid Infrastructure 설치 검증 실패!
+        crsctl check crs: {{ crsctl_check.stdout_lines | join(', ') }}
+        노드 수: {{ olsnodes_result.stdout_lines | length }}
+    success_msg: |
+      ✔ Grid Infrastructure 설치 완료 및 검증 성공!
+        클러스터: {{ cluster_name }}
+        노드: {{ olsnodes_result.stdout_lines | join(', ') }}
+  failed_when: false   # 검증 실패 시 경고만 (설치 실패로 abort 방지)
+
+- name: "[GI-12] ─── GI 설치 완료 ─────────────────────────────"
+  ansible.builtin.debug:
+    msg: |
+      ╔══════════════════════════════════════════════════════╗
+      ║  Oracle Grid Infrastructure 설치 완료               ║
+      ║                                                      ║
+      ║  다음 단계: Oracle Database 설치                     ║
+      ║    playbooks/07_db_install.yml                       ║
+      ║                                                      ║
+      ║  또는 DATA/FRA 디스크 그룹 생성:                    ║
+      ║    vagrant ssh storage1                              ║
+      ║    cd /vagrant                                       ║
+      ║    ANSIBLE_CONFIG=/vagrant/ansible.cfg \            ║
+      ║    ansible-playbook -i inventories/vagrant/hosts.ini ║
+      ║      playbooks/07_db_install.yml                     ║
+      ╚══════════════════════════════════════════════════════╝

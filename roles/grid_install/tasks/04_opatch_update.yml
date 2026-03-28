@@ -1,0 +1,81 @@
+---
+# ======================================================================
+#  04_opatch_update.yml – OPatch 최신 버전으로 교체
+#  OL9 호환 RU 적용을 위해 OPatch 12.2.0.1.40+ 필요
+#  opatch_zip 변수가 비어 있으면 이 단계 전체 스킵
+#  실행: grid 사용자, 양 노드
+# ======================================================================
+
+- name: "[GI-04] OPatch zip 변수 확인 (비어 있으면 스킵)"
+  ansible.builtin.debug:
+    msg: "opatch_zip 미지정 → OPatch 업데이트 스킵 (기본 내장 버전 사용)"
+  when: opatch_zip == ""
+
+- name: "[GI-04] OPatch zip 존재 확인"
+  ansible.builtin.stat:
+    path: "{{ oracle_sw_path }}/{{ opatch_zip }}"
+  register: opatch_zip_stat
+  when: opatch_zip != ""
+
+- name: "[GI-04] 현재 OPatch 버전 확인"
+  ansible.builtin.shell: |
+    {{ grid_home }}/OPatch/opatch version 2>&1 | grep "OPatch Version" | awk '{print $NF}'
+  become_user: "{{ grid_user }}"
+  register: current_opatch_ver
+  changed_when: false
+  failed_when: false
+  when: opatch_zip != ""
+
+- name: "[GI-04] 현재 OPatch 버전 출력"
+  ansible.builtin.debug:
+    msg: "현재 OPatch 버전: {{ current_opatch_ver.stdout | trim }}"
+  when: opatch_zip != "" and current_opatch_ver is not skipped
+
+- name: "[GI-04] 기존 OPatch 디렉토리 백업"
+  ansible.builtin.shell: |
+    if [ -d "{{ grid_home }}/OPatch" ] && [ ! -d "{{ grid_home }}/OPatch_backup" ]; then
+      mv "{{ grid_home }}/OPatch" "{{ grid_home }}/OPatch_backup"
+      echo "backed_up"
+    else
+      echo "already_done"
+    fi
+  become_user: "{{ grid_user }}"
+  register: opatch_backup
+  changed_when: "'backed_up' in opatch_backup.stdout"
+  when:
+    - opatch_zip != ""
+    - opatch_zip_stat.stat.exists
+
+- name: "[GI-04] 새 OPatch 압축 해제 → Grid Home"
+  ansible.builtin.unarchive:
+    src: "{{ oracle_sw_path }}/{{ opatch_zip }}"
+    dest: "{{ grid_home }}"
+    remote_src: yes
+    owner: "{{ grid_user }}"
+    group: oinstall
+  become: yes
+  become_user: "{{ grid_user }}"
+  when:
+    - opatch_zip != ""
+    - opatch_zip_stat.stat.exists
+    - opatch_backup.changed
+
+- name: "[GI-04] 업데이트 후 OPatch 버전 확인"
+  ansible.builtin.shell: |
+    {{ grid_home }}/OPatch/opatch version 2>&1 | grep "OPatch Version" | awk '{print $NF}'
+  become_user: "{{ grid_user }}"
+  register: new_opatch_ver
+  changed_when: false
+  failed_when: false
+  when: opatch_zip != "" and opatch_zip_stat.stat.exists
+
+- name: "[GI-04] 업데이트된 OPatch 버전 출력"
+  ansible.builtin.debug:
+    msg: >
+      OPatch 업데이트 완료:
+        이전: {{ current_opatch_ver.stdout | trim }}
+        이후: {{ new_opatch_ver.stdout | trim }}
+  when:
+    - opatch_zip != ""
+    - new_opatch_ver is not skipped
+    - new_opatch_ver.stdout is defined

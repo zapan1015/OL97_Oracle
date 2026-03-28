@@ -1,0 +1,96 @@
+---
+# ======================================================================
+#  09_silent_install.yml – GI Silent Mode 설치 (-applyRU 포함)
+#  실행: grid 사용자, racnode1 only
+#  예상 소요 시간: 30분(RU 없음) ~ 90분(RU 포함)
+#
+#  ⚠ OL9 주의사항:
+#    - 19.3 기본 바이너리는 OL9 미지원 → grid_ru_patch_dir 반드시 지정
+#    - cgroup v2 환경: OL9 기본값이므로 GI 19.19+ RU 필수
+#    - ASMFD 라벨링(06) 완료 후 실행할 것
+# ======================================================================
+
+# ── 설치 이미 완료 여부 확인 (멱등성) ────────────────────────────────
+- name: "[GI-09] CRS 상태 확인 (설치 완료 여부)"
+  ansible.builtin.shell: |
+    {{ grid_home }}/bin/crsctl check crs 2>&1 || true
+  register: crs_status
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-09] GI 이미 설치됨 – 설치 단계 스킵"
+  ansible.builtin.debug:
+    msg: "Grid Infrastructure 이미 설치되어 있습니다. 설치 단계를 건너뜁니다."
+  when: "'CRS-4638' in crs_status.stdout or 'is online' in crs_status.stdout"
+
+# ── Silent 설치 명령 구성 ──────────────────────────────────────────────
+- name: "[GI-09] 설치 명령 미리보기 출력"
+  ansible.builtin.debug:
+    msg: |
+      실행할 명령:
+        {{ grid_home }}/gridSetup.sh -silent
+          -responseFile {{ gi_rsp_file }}
+          {{ '-applyRU ' + grid_ru_patch_dir if grid_ru_patch_dir else '(RU 없음 – OL9 미지원 주의)' }}
+          -ignorePrereqFailure
+      예상 소요 시간: {{ '30~90분 (RU 포함)' if grid_ru_patch_dir else '약 30분' }}
+  when: "'CRS-4638' not in crs_status.stdout and 'is online' not in crs_status.stdout"
+
+# ── 실제 설치 실행 ────────────────────────────────────────────────────
+- name: "[GI-09] GI Silent Mode 설치 시작 (백그라운드 async 실행)"
+  ansible.builtin.shell: |
+    set -o pipefail
+    export ORACLE_HOME={{ grid_home }}
+    export ORACLE_BASE=/tmp         # 설치 중 Diagnostic 위치 (임시)
+    export PATH=$ORACLE_HOME/bin:$PATH
+
+    LOG_FILE="/tmp/gi_install_$(date +%Y%m%d_%H%M%S).log"
+
+    {{ grid_home }}/gridSetup.sh \
+      -silent \
+      -responseFile {{ gi_rsp_file }} \
+      {% if grid_ru_patch_dir != "" %}-applyRU {{ grid_ru_patch_dir }} \{% endif %}
+      -ignorePrereqFailure \
+      2>&1 | tee "$LOG_FILE"
+
+    RC=${PIPESTATUS[0]}
+    echo "INSTALL_LOG:$LOG_FILE"
+    exit $RC
+  become_user: "{{ grid_user }}"
+  register: gi_install_result
+  async: "{{ install_timeout }}"
+  poll: 30
+  changed_when: true
+  failed_when:
+    - gi_install_result.rc is defined
+    - gi_install_result.rc != 0
+    - "'Successfully Setup Software' not in (gi_install_result.stdout | default(''))"
+  when: "'CRS-4638' not in crs_status.stdout and 'is online' not in crs_status.stdout"
+
+# ── 설치 결과 분석 ────────────────────────────────────────────────────
+- name: "[GI-09] 설치 로그 경로 추출"
+  ansible.builtin.set_fact:
+    gi_install_log: >-
+      {{ gi_install_result.stdout | default('') | regex_search('INSTALL_LOG:(.+)', '\\1') | first | default('/tmp/gi_install.log') }}
+  when: gi_install_result is not skipped
+
+- name: "[GI-09] 설치 결과 요약 출력"
+  ansible.builtin.debug:
+    msg: |
+      ====================================
+      GI 설치 결과 요약
+      ====================================
+      {{ gi_install_result.stdout_lines | default([]) | join('\n') | regex_findall('(?:Successfully|WARN|ERROR|root.sh|orainstRoot)[^\n]*') | join('\n') }}
+      ====================================
+      상세 로그: {{ gi_install_log | default('/tmp/gi_install_*.log') }}
+  when: gi_install_result is not skipped
+
+- name: "[GI-09] root.sh 실행 안내 메시지 추출"
+  ansible.builtin.debug:
+    msg: |
+      ⚠ 다음 단계(GI Phase 5)에서 root.sh 스크립트가 자동 실행됩니다.
+      수동 실행 시 순서:
+        1. [racnode1] /u01/app/oraInventory/orainstRoot.sh
+        2. [racnode1] {{ grid_home }}/root.sh
+        3. [racnode2] /u01/app/oraInventory/orainstRoot.sh
+        4. [racnode2] {{ grid_home }}/root.sh
+  when: gi_install_result is not skipped

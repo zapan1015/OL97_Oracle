@@ -1,0 +1,145 @@
+################################################################################
+##                                                                            ##
+## Oracle Grid Infrastructure 19c Silent Installation Response File          ##
+## 생성: Ansible gridSetup_rac.rsp.j2 템플릿 (자동 생성 – 수동 편집 금지)   ##
+##                                                                            ##
+## 환경: {{ cluster_name }} ({{ groups['racnodes'] | join(', ') }})          ##
+## 생성일: {{ ansible_date_time.iso8601 }}                                   ##
+##                                                                            ##
+## 참조: MOS Note 2668780.1 (OL9 지원), 2506251.1 (19c Silent 설치)         ##
+##                                                                            ##
+################################################################################
+
+[GENERAL]
+######################################################################
+# INVENTORY_LOCATION 지정 시 /etc/oraInst.loc 보다 우선 적용         #
+######################################################################
+INVENTORY_LOCATION={{ oracle_inv }}
+SELECTED_LANGUAGES=en,ko
+
+[oracle.install.responseFileVersion]
+oracle.install.responseFileVersion=/oracle/install/rspfmt_crsinstall_response_schema_v19.0.0
+
+################################################################################
+## Section A – 설치 옵션                                                       ##
+################################################################################
+
+# 설치 유형: CRS_CONFIG (신규 클러스터 구성), HA_CONFIG (단독 HA), UPGRADE
+oracle.install.option=CRS_CONFIG
+
+################################################################################
+## Section B – GI 홈 경로                                                      ##
+################################################################################
+
+ORACLE_BASE={{ grid_base }}
+oracle.install.asm.ORACLE_HOME={{ grid_home }}
+oracle.install.asm.ORACLE_BASE={{ grid_base }}
+
+################################################################################
+## Section C – 클러스터 정보                                                   ##
+################################################################################
+
+# 클러스터 이름 (알파벳/숫자/-. 조합, 최대 15자)
+oracle.install.crs.config.clusterName={{ cluster_name }}
+
+# SCAN (Single Client Access Name) 설정
+# 테스트 랩: DNS 없음 → /etc/hosts 에 {{ scan_ip }} {{ scan_name }} 등록됨
+oracle.install.crs.config.scanName={{ scan_name }}
+oracle.install.crs.config.scanPort={{ scan_port }}
+
+# GNS (Grid Naming Service) – 테스트 랩에서는 비활성화
+oracle.install.crs.config.ClusterConfiguration=STANDALONE
+oracle.install.crs.config.configureAsExtendedCluster=false
+oracle.install.crs.config.gpnp.configureGNS=false
+oracle.install.crs.config.gpnp.gnsOption=CREATE_NEW_GNS
+oracle.install.crs.config.gpnp.gnsClientDataFile=
+oracle.install.crs.config.gpnp.gnsSubDomain=
+oracle.install.crs.config.gpnp.gnsVIPAddress=
+
+################################################################################
+## Section D – RAC 노드 및 VIP 정보                                            ##
+################################################################################
+
+# 형식: hostname:vip_hostname [,hostname:vip_hostname, ...]
+oracle.install.crs.config.clusterNodes={% for host in groups['racnodes'] %}{{ host }}:{{ hostvars[host]['node_vip_hostname'] }}{% if not loop.last %},{% endif %}{% endfor %}
+
+
+################################################################################
+## Section E – 네트워크 인터페이스 정의                                        ##
+################################################################################
+
+# 형식: interface_name:subnet:role[,interface_name:subnet:role,...]
+# role: 1=PUBLIC, 2=PRIVATE(Interconnect), 3=DO_NOT_USE
+# ⚠ OL9 VirtualBox: eth1=Public(56.x), eth2=Private(57.x) — all.yml 기준
+oracle.install.crs.config.networkInterfaceList={{ public_iface }}:{{ public_subnet }}:1,{{ priv_iface }}:{{ priv_subnet }}:2
+
+################################################################################
+## Section F – 스토리지 옵션 및 ASMFD 구성                                    ##
+################################################################################
+
+# 스토리지 타입: FLEX_ASM_STORAGE (권장), FILE_SYSTEM_STORAGE
+oracle.install.crs.config.storageOption=FLEX_ASM_STORAGE
+
+# ASMFD (ASM Filter Driver) 활성화 – udev 방식 대체
+# ⚠ 05_asmfd_configure / 06_asmfd_label 완료 후 설치해야 함
+oracle.install.asm.configureASMFD=true
+
+################################################################################
+## Section G – GRID 디스크 그룹 (OCR + Voting Disk)                           ##
+################################################################################
+
+# GI 설치 중 생성되는 최초 디스크 그룹 (OCR + Voting Disk 저장)
+oracle.install.asm.diskGroup.name={{ grid_dg_name }}
+
+# EXTERNAL: 단일 디스크 (테스트), NORMAL: 2중화, HIGH: 3중화
+oracle.install.asm.diskGroup.redundancy={{ grid_dg_redundancy }}
+
+# AU Size (MB): 1, 2, 4(권장), 8, 16, 32, 64
+oracle.install.asm.diskGroup.AUSize={{ grid_dg_au_size }}
+
+# ASMFD 라벨로 디스크 지정 (형식: AFD:<label>)
+oracle.install.asm.diskGroup.disks={{ grid_dg_disks | join(',') }}
+
+oracle.install.asm.diskGroup.diskDiscoveryString=AFD:*
+oracle.install.asm.monitorPassword=
+
+################################################################################
+## Section H – GIMR (Grid Infrastructure Management Repository)               ##
+################################################################################
+
+# GIMR은 단독 클러스터에서는 선택적 (테스트 랩: 비활성화로 설치 시간 단축)
+oracle.install.crs.config.configureGIMR=false
+
+################################################################################
+## Section I – 권한 분리 그룹 (OS Authentication)                             ##
+################################################################################
+
+oracle.install.asm.OSDBA={{ asmdba_group }}
+oracle.install.asm.OSOPER={{ asmoper_group }}
+oracle.install.asm.OSASM={{ asmadmin_group }}
+
+################################################################################
+## Section J – root 스크립트 자동 실행 설정                                   ##
+################################################################################
+
+# false: root.sh를 수동으로 실행 (10_root_scripts.yml 에서 자동 실행)
+oracle.install.crs.rootconfig.executeRootScript=false
+oracle.install.crs.rootconfig.configMethod=ROOT
+
+################################################################################
+## Section K – 기타 설정                                                       ##
+################################################################################
+
+# 설치 중 사용 안 함 (빈 값으로 유지)
+oracle.install.crs.config.ipmi.bmcIP=
+oracle.install.crs.config.ipmi.bmcUsername=
+oracle.install.crs.config.ipmi.bmcPassword=
+
+# OCR/Voting Disk (ASMFD 구성 시 아래는 무시됨)
+oracle.install.crs.config.sharedFileSystemStorage.diskDriveMapping=
+oracle.install.crs.config.sharedFileSystemStorage.votingDiskLocations=
+oracle.install.crs.config.sharedFileSystemStorage.votingDiskRedundancy=EXTERNAL
+oracle.install.crs.config.sharedFileSystemStorage.ocrLocations=
+
+# 클러스터 허브/리프 (Flex Cluster)
+oracle.install.crs.config.clusterMembersAsString=

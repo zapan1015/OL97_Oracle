@@ -1,18 +1,22 @@
 ---
 # ======================================================================
-#  racnodes 그룹 변수 – Oracle RAC Node 공통
+#  inventories/vagrant/group_vars/racnodes.yml
+#  Oracle RAC Node 공통 변수 – Vagrant 환경
 # ======================================================================
 
-# ── iSCSI Initiator 설정 ───────────────────────────────────────────────
+# ── iSCSI Initiator 설정 ──────────────────────────────────────────────
 # iscsi_target_iqn, iscsi_target_ip, iscsi_target_port → all.yml 상속
 
-# ── ASM 디스크 매핑 (udev symlink 생성 기준) ──────────────────────────
-# iSCSI 를 통해 연결된 디스크의 udev symlink 경로
+# ── iSCSI 세션 자동 로그인 ────────────────────────────────────────────
+iscsi_auto_login: true
+
+# ── ASM 디스크 매핑 (05_asm_disk.yml – udev symlink) ──────────────────
+# ⚠ ASMFD 전환 후에는 아래 심볼릭 링크 대신 AFD:* 라벨 사용
 asm_disk_data1_symlink: "/dev/oracleasm/DATA1"
 asm_disk_data2_symlink: "/dev/oracleasm/DATA2"
 asm_disk_fra_symlink:   "/dev/oracleasm/FRA1"
 
-# ── ASM 디스크 그룹 정의 ───────────────────────────────────────────────
+# ── ASM 디스크 그룹 정의 (05_asm_disk.yml 용) ─────────────────────────
 asm_diskgroups:
   - name:       "DATA"
     redundancy:  "EXTERNAL"
@@ -24,10 +28,65 @@ asm_diskgroups:
     disks:
       - "{{ asm_disk_fra_symlink }}"
 
-# ── Oracle RAC 커널 파라미터 ───────────────────────────────────────────
+# ── Oracle RAC 커널 파라미터 ──────────────────────────────────────────
 kernel_shmmax:  "4294967296"   # 4 GB
 kernel_shmall:  "1048576"
 kernel_shmmni:  "4096"
 
-# ── iSCSI 세션 자동 로그인 ─────────────────────────────────────────────
-iscsi_auto_login: true
+# ======================================================================
+#  Grid Infrastructure (GI) 설치 변수 (06_grid_install.yml 용)
+# ======================================================================
+
+# ── GI 설치 미디어 ────────────────────────────────────────────────────
+oracle_sw_path:  "/oracle_sw"
+grid_zip:        "LINUX.X64_193000_grid_home.zip"
+
+# OPatch 업데이트용 zip (없으면 "" → 스킵)
+# oracle/patches/ 에 배치: p6880880_190000_Linux-x86-64.zip
+opatch_zip:      ""
+
+# ── RU (Release Update) 패치 경로 ─────────────────────────────────────
+# ⚠ OL9 환경에서는 19.19+ RU 필수 (2026년 기준: 19.26, Patch# 35643882)
+# 사용 방법:
+#   1) oracle/patches/<RU_DIR>/ 에 RU zip 압축 해제
+#   2) 아래 경로를 실제 패치 디렉토리로 지정
+# 비워 두면 -applyRU 없이 설치 → OL9 에서 실패할 수 있음
+grid_ru_patch_dir: ""
+# grid_ru_patch_dir: "/oracle_sw/patches/35643882"   # 19.26 RU 예시
+
+# ── ASMFD 디스크 라벨 정의 ────────────────────────────────────────────
+# iSCSI raw disk → ASMFD label (racnode1 에서만 라벨링, 공유 디스크 전파)
+afd_disks:
+  - label:  "GRID_0001"     # OCR + Voting Disk   (GI 설치 시 GRID DG 생성)
+    device: "/dev/sdb"      # iSCSI → 20 GB
+  - label:  "DATA_0001"     # DATA diskgroup       (DB 설치 시 DATA DG 생성)
+    device: "/dev/sdc"      # iSCSI → 20 GB
+  - label:  "FRA_0001"      # FRA diskgroup        (DB 설치 시 FRA DG 생성)
+    device: "/dev/sdd"      # iSCSI → 10 GB
+
+# ── GRID 디스크 그룹 (OCR + Voting Disk – GI 설치 시 생성) ──────────
+grid_dg_name:        "GRID"
+grid_dg_redundancy:  "EXTERNAL"   # 테스트 랩 (운영: NORMAL 권장)
+grid_dg_au_size:     4            # AU 크기 (MB)
+grid_dg_disks:
+  - "AFD:GRID_0001"
+
+# ── 네트워크 인터페이스 (OL9 VirtualBox 기준) ─────────────────────────
+# NIC1(enp0s3): NAT → 사용 안 함
+# NIC2(eth1):   host-only 192.168.56.x → Public
+# NIC3(eth2):   internal 192.168.57.x  → Private(Interconnect)
+public_iface:    "eth1"
+priv_iface:      "eth2"
+public_subnet:   "192.168.56.0"
+priv_subnet:     "192.168.57.0"
+
+# ── GI 설치 옵션 ──────────────────────────────────────────────────────
+gi_rsp_file:          "/tmp/gridSetup_rac.rsp"
+cvu_ignore_failures:  true    # 테스트 랩: CVU 경고 무시 (운영: false)
+
+# ── 타임아웃 (초) ──────────────────────────────────────────────────────
+unzip_timeout:        1800    # 30분 (zip 압축 해제)
+opatch_timeout:       300     # 5분
+install_timeout:      7200    # 2시간 (RU 포함 시 더 소요 가능)
+rootsh_timeout:       1800    # 30분 (노드당)
+configtools_timeout:  1200    # 20분

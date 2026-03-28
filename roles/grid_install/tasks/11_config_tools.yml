@@ -1,0 +1,84 @@
+---
+# ======================================================================
+#  11_config_tools.yml – executeConfigTools 실행 (설치 마무리)
+#  root.sh 완료 후 grid 계정으로 실행하여 최종 구성 마무리
+#  (SCAN VIP 등록, CSS/CRS 자원 등록, ASMFD diskgroup 확인 등)
+#  실행: grid 사용자, racnode1 only
+# ======================================================================
+
+# ── 모든 노드 root.sh 완료 대기 ───────────────────────────────────────
+- name: "[GI-11] 양 노드 CRS 기동 대기 (최대 5분)"
+  ansible.builtin.shell: |
+    {{ grid_home }}/bin/crsctl check crs 2>&1
+  register: crs_ready_check
+  retries: 10
+  delay: 30
+  until: "'CRS-4638' in crs_ready_check.stdout or 'is online' in crs_ready_check.stdout"
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-11] CRS 기동 상태 확인"
+  ansible.builtin.debug:
+    msg: "CRS 상태: {{ crs_ready_check.stdout_lines }}"
+
+# ── executeConfigTools 실행 ───────────────────────────────────────────
+- name: "[GI-11] 구성 도구 이미 완료 여부 확인"
+  ansible.builtin.shell: |
+    {{ grid_home }}/bin/crsctl stat res -t 2>&1 | grep -c "ONLINE" || true
+  register: online_resources
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-11] executeConfigTools 실행"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export ORACLE_BASE={{ grid_base }}
+    export PATH=$ORACLE_HOME/bin:$PATH
+
+    {{ grid_home }}/gridSetup.sh \
+      -executeConfigTools \
+      -responseFile {{ gi_rsp_file }} \
+      -silent \
+      2>&1 | tee /tmp/gi_configtools_$(date +%Y%m%d_%H%M%S).log
+
+    exit ${PIPESTATUS[0]}
+  become_user: "{{ grid_user }}"
+  register: configtools_result
+  async: "{{ configtools_timeout }}"
+  poll: 20
+  changed_when: true
+  failed_when:
+    - configtools_result.rc is defined
+    - configtools_result.rc != 0
+    - "'Successfully' not in (configtools_result.stdout | default(''))"
+    - "'Configuration tools execution successful' not in (configtools_result.stdout | default(''))"
+  when: online_resources.stdout | int < 3
+
+- name: "[GI-11] 이미 구성 완료 – executeConfigTools 스킵"
+  ansible.builtin.debug:
+    msg: "CRS 자원이 이미 {{ online_resources.stdout | trim }}개 ONLINE 상태 – 스킵"
+  when: online_resources.stdout | int >= 3
+
+- name: "[GI-11] ConfigTools 결과 출력"
+  ansible.builtin.debug:
+    msg: "{{ configtools_result.stdout_lines | default([]) }}"
+  when: configtools_result is not skipped
+
+# ── GRID 디스크 그룹 마운트 확인 ─────────────────────────────────────
+- name: "[GI-11] GRID ASM 디스크 그룹 마운트 상태 확인"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export PATH=$ORACLE_HOME/bin:$PATH
+    export ORACLE_SID=+ASM1
+    export ORACLE_BASE={{ grid_base }}
+
+    srvctl status diskgroup -diskgroup {{ grid_dg_name }} 2>&1 || \
+    {{ grid_home }}/bin/asmcmd lsdg 2>&1 || true
+  become_user: "{{ grid_user }}"
+  register: grid_dg_status
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-11] GRID 디스크 그룹 상태"
+  ansible.builtin.debug:
+    msg: "{{ grid_dg_status.stdout_lines }}"

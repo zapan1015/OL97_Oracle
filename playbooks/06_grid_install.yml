@@ -1,0 +1,195 @@
+---
+# ======================================================================
+#  playbooks/06_grid_install.yml
+#  Oracle Grid Infrastructure 19c – Silent Mode 설치 (ASMFD 구성)
+#
+#  실행 방법 (storage1에서):
+#    ANSIBLE_CONFIG=/vagrant/ansible.cfg \
+#    ansible-playbook -i inventories/vagrant/hosts.ini \
+#                     playbooks/06_grid_install.yml -v
+#
+#  사전 조건:
+#    ① oracle/LINUX.X64_193000_grid_home.zip 존재 (/oracle_sw 마운트됨)
+#    ② oracle/patches/<RU_DIR>/ 에 19.19+ RU 압축 해제
+#       (OL9 필수 – racnodes.yml의 grid_ru_patch_dir 지정)
+#    ③ 01~05 playbook 완료 (iSCSI 연결, ASM 디스크, RAC prereq)
+#
+#  OCM's Note (MOS 2668780.1 / 2506251.1):
+#    OL9 지원은 RU 19.19부터 도입됨
+#    -applyRU 없는 19.3 설치는 OL9에서 실패함
+#    ASMFD는 ASMLIB/udev 보다 관리 편의성·안전성 우수
+#
+#  단계별 Play 구성:
+#    Phase 1 – 디렉토리 생성, /etc/hosts VIP/SCAN 추가 (root, 양 노드)
+#    Phase 2 – SSH 등가성 구성 grid/root (root, 양 노드)
+#    Phase 3 – GI zip 압축 해제, OPatch 업데이트 (grid, 양 노드)
+#    Phase 4 – ASMFD 커널 모듈 로드 (root, 양 노드)
+#    Phase 5 – ASMFD 디스크 라벨링 (root, racnode1 only)
+#    Phase 6 – 응답 파일 생성, CVU 검증, Silent 설치 (grid, racnode1)
+#    Phase 7 – orainstRoot.sh + root.sh 순차 실행 (root, serial: 1)
+#    Phase 8 – executeConfigTools 실행 (grid, racnode1)
+#    Phase 9 – 클러스터 상태 최종 검증 (grid, racnode1)
+# ======================================================================
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 1 – 디렉토리 생성 및 /etc/hosts VIP/SCAN 추가
+# ══════════════════════════════════════════════════════════════════════
+- name: "GI Phase 1/9 – 디렉토리 생성 및 VIP/SCAN hosts 등록"
+  hosts: racnodes
+  become: yes
+  gather_facts: yes
+  tags: [gi_prep, gi_dirs]
+
+  tasks:
+    - name: "Include grid_install role – 01_directories"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 01_directories
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 2 – SSH 등가성 구성 (grid, root – 양방향)
+# ══════════════════════════════════════════════════════════════════════
+- name: "GI Phase 2/9 – SSH 등가성 구성 (grid/root 양 노드 ↔)"
+  hosts: racnodes
+  become: yes
+  gather_facts: yes
+  tags: [gi_prep, gi_ssh]
+
+  tasks:
+    - name: "Include grid_install role – 02_ssh_equivalence"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 02_ssh_equivalence
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 3 – GI 소프트웨어 압축 해제 및 OPatch 업데이트
+# ══════════════════════════════════════════════════════════════════════
+- name: "GI Phase 3/9 – GI zip 압축 해제 및 OPatch 업데이트"
+  hosts: racnodes
+  become: yes
+  gather_facts: yes
+  tags: [gi_prep, gi_unzip]
+
+  tasks:
+    - name: "Include grid_install role – 03_unzip_software"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 03_unzip_software
+
+    - name: "Include grid_install role – 04_opatch_update"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 04_opatch_update
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 4 – ASMFD 커널 모듈 구성 (양 노드)
+# ══════════════════════════════════════════════════════════════════════
+- name: "GI Phase 4/9 – ASMFD 커널 모듈 로드 (양 노드)"
+  hosts: racnodes
+  become: yes
+  gather_facts: yes
+  tags: [gi_asmfd, gi_asmfd_configure]
+
+  tasks:
+    - name: "Include grid_install role – 05_asmfd_configure"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 05_asmfd_configure
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 5 – ASMFD 디스크 라벨링 (racnode1 only)
+# ══════════════════════════════════════════════════════════════════════
+- name: "GI Phase 5/9 – ASMFD 공유 디스크 라벨링 (racnode1)"
+  hosts: racnode1
+  become: yes
+  gather_facts: yes
+  tags: [gi_asmfd, gi_asmfd_label]
+
+  tasks:
+    - name: "Include grid_install role – 06_asmfd_label"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 06_asmfd_label
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 6 – 응답 파일 생성 + CVU 검증 + Silent 설치
+# ══════════════════════════════════════════════════════════════════════
+- name: "GI Phase 6/9 – 응답 파일 생성, CVU 검증, Silent 설치 (racnode1)"
+  hosts: racnode1
+  become: yes
+  become_user: "{{ grid_user }}"
+  gather_facts: yes
+  tags: [gi_install]
+
+  tasks:
+    - name: "Include grid_install role – 07_response_file"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 07_response_file
+
+    - name: "Include grid_install role – 08_cvu_precheck"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 08_cvu_precheck
+
+    - name: "Include grid_install role – 09_silent_install"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 09_silent_install
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 7 – orainstRoot.sh + root.sh 순차 실행 (serial: 1)
+#           Node1 완전 완료 후 Node2 실행 (절대 병렬 금지)
+# ══════════════════════════════════════════════════════════════════════
+- name: "GI Phase 7/9 – root.sh 순차 실행 (racnode1 → racnode2)"
+  hosts: racnodes
+  serial: 1                   # ⚠ 반드시 직렬 실행 (Node1 완료 후 Node2)
+  become: yes
+  gather_facts: no
+  tags: [gi_rootsh]
+
+  tasks:
+    - name: "Include grid_install role – 10_root_scripts"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 10_root_scripts
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 8 – executeConfigTools 실행 (설치 마무리)
+# ══════════════════════════════════════════════════════════════════════
+- name: "GI Phase 8/9 – executeConfigTools 실행 (racnode1)"
+  hosts: racnode1
+  become: yes
+  become_user: "{{ grid_user }}"
+  gather_facts: yes
+  tags: [gi_configtools]
+
+  tasks:
+    - name: "Include grid_install role – 11_config_tools"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 11_config_tools
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 9 – 클러스터 상태 최종 검증
+# ══════════════════════════════════════════════════════════════════════
+- name: "GI Phase 9/9 – 클러스터 상태 최종 검증 (Health Check)"
+  hosts: racnode1
+  become: yes
+  become_user: "{{ grid_user }}"
+  gather_facts: yes
+  tags: [gi_verify]
+
+  tasks:
+    - name: "Include grid_install role – 12_verify"
+      ansible.builtin.include_role:
+        name: grid_install
+        tasks_from: 12_verify

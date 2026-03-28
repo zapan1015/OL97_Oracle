@@ -1,0 +1,22 @@
+---
+# ======================================================================
+#  roles/grid_install/tasks/main.yml
+#  이 role은 playbook(06_grid_install.yml)의 각 Play에서
+#  tasks_from 으로 단계별 태스크 파일을 명시적으로 호출합니다.
+#  (become_user 가 단계별로 다르기 때문에 단일 role include 불가)
+# ======================================================================
+#
+#  호출 순서 (06_grid_install.yml 참조):
+#    01_directories      – 디렉토리 생성, /etc/hosts VIP/SCAN 추가   (root, 양 노드)
+#    02_ssh_equivalence  – grid/root SSH 등가성 구성                  (root, 양 노드)
+#    03_unzip_software   – GI zip 압축 해제                           (grid, 양 노드)
+#    04_opatch_update    – OPatch 최신 버전으로 교체                  (grid, 양 노드)
+#    05_asmfd_configure  – ASMFD 커널 모듈 로드                      (root, 양 노드)
+#    06_asmfd_label      – 공유 디스크 AFD 라벨링                    (root, node1 only)
+#    07_response_file    – gridSetup_rac.rsp 응답 파일 생성           (grid, node1 only)
+#    08_cvu_precheck     – CVU 사전 검증 (runcluvfy.sh)              (grid, node1 only)
+#    09_silent_install   – gridSetup.sh -silent -applyRU 실행        (grid, node1 only)
+#    10_root_scripts     – orainstRoot.sh + root.sh 순차 실행        (root, serial:1)
+#    11_config_tools     – executeConfigTools 실행                   (grid, node1 only)
+#    12_verify           – 클러스터 상태 검증                        (grid, node1 only)
+# ======================================================================

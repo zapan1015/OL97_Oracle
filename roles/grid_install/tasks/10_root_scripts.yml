@@ -1,0 +1,85 @@
+---
+# ======================================================================
+#  10_root_scripts.yml – orainstRoot.sh + root.sh 순차 실행
+#  ⚠ 반드시 serial:1 플레이에서 실행 (Node1 완료 후 Node2 실행)
+#  실행: root, racnodes (serial: 1)
+#  예상 소요 시간: 노드당 10~20분 (총 19단계)
+# ======================================================================
+
+# ── 실행 필요 여부 확인 (멱등성) ────────────────────────────────────
+- name: "[GI-10] OCR 구성 여부 확인 (root.sh 이미 실행됐는지 체크)"
+  ansible.builtin.shell: |
+    {{ grid_home }}/bin/ocrcheck 2>&1 || true
+  register: ocr_check
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-10] 이미 root.sh 실행됨 – 스킵"
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: OCR 이미 구성됨. root.sh 스킵."
+  when: "'successful' in ocr_check.stdout | lower"
+
+# ── orainstRoot.sh 실행 ──────────────────────────────────────────────
+- name: "[GI-10] [{{ inventory_hostname }}] orainstRoot.sh 실행"
+  ansible.builtin.shell: |
+    if [ -f "{{ oracle_inv }}/orainstRoot.sh" ]; then
+      bash {{ oracle_inv }}/orainstRoot.sh 2>&1
+      echo "ORAINST_DONE"
+    else
+      echo "ORAINST_NOT_FOUND"
+    fi
+  register: orainst_result
+  changed_when: "'ORAINST_DONE' in orainst_result.stdout"
+  failed_when:
+    - "'ORAINST_NOT_FOUND' in orainst_result.stdout"
+    - not (oracle_inv + '/orainstRoot.sh') is file
+  when: "'successful' not in ocr_check.stdout | lower"
+
+- name: "[GI-10] orainstRoot.sh 결과"
+  ansible.builtin.debug:
+    msg: "{{ orainst_result.stdout_lines | default([]) }}"
+  when: orainst_result is not skipped
+
+# ── root.sh 실행 (핵심 – OCR/Voting 구성, CSS/CRS 데몬 기동) ────────
+- name: "[GI-10] [{{ inventory_hostname }}] root.sh 실행 (약 10~20분 소요)"
+  ansible.builtin.shell: |
+    {{ grid_home }}/root.sh 2>&1
+  register: rootsh_result
+  async: "{{ rootsh_timeout }}"
+  poll: 20
+  changed_when: true
+  failed_when:
+    - rootsh_result.rc is defined
+    - rootsh_result.rc != 0
+    - "'Successfully' not in (rootsh_result.stdout | default(''))"
+  when: "'successful' not in ocr_check.stdout | lower"
+
+- name: "[GI-10] root.sh 상세 결과 출력"
+  ansible.builtin.debug:
+    msg: |
+      [{{ inventory_hostname }}] root.sh 완료
+      ----------------------------------------
+      {{ rootsh_result.stdout_lines | default([]) | join('\n') }}
+  when: rootsh_result is not skipped
+
+# ── root.sh 완료 후 CRS 데몬 기동 확인 ─────────────────────────────
+- name: "[GI-10] CRS 핵심 프로세스 기동 확인 (ocssd, crsd, evmd 등)"
+  ansible.builtin.shell: |
+    ps -ef | grep -E "[ocssd|crsd|evmd|cssdmonitor|cssdagent]\.bin" | grep -v grep | wc -l
+  register: crs_procs
+  changed_when: false
+
+- name: "[GI-10] CRS 프로세스 수 출력"
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: CRS 관련 프로세스 {{ crs_procs.stdout | trim }}개 기동 중"
+
+- name: "[GI-10] CRS 기동 상태 확인"
+  ansible.builtin.shell: |
+    {{ grid_home }}/bin/crsctl check crs 2>&1 || true
+  register: post_rootsh_crs
+  changed_when: false
+  failed_when: false
+
+- name: "[GI-10] root.sh 후 CRS 상태"
+  ansible.builtin.debug:
+    msg: "{{ post_rootsh_crs.stdout_lines }}"

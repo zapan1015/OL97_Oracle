@@ -28,3 +28,6 @@
 
 - name: "Phase 5 – ASM Disk udev Rules (racnodes)"
   import_playbook: 05_asm_disk.yml
+
+- name: "Phase 6 – Grid Infrastructure Silent Install (racnodes)"
+  import_playbook: 06_grid_install.yml

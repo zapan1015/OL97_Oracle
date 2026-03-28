@@ -1,0 +1,9 @@
+---
+# ======================================================================
+#  roles/grid_install/handlers/main.yml
+# ======================================================================
+
+- name: restart iscsid
+  ansible.builtin.systemd:
+    name: iscsid
+    state: restarted

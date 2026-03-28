@@ -1,0 +1,85 @@
+################################################################################
+##  Oracle Grid Infrastructure 19c – 응답 파일 예시 (수동 설치용)           ##
+##                                                                            ##
+##  ⚠ 이 파일은 참조용 예시입니다.                                           ##
+##    Ansible 자동화 시에는 gridSetup_rac.rsp.j2 템플릿이 자동 생성합니다.  ##
+##                                                                            ##
+##  환경: 2-Node RAC Lab (racnode1 + racnode2)                               ##
+##  저장소: ASMFD (sdb=GRID, sdc=DATA, sdd=FRA)                             ##
+##                                                                            ##
+##  수동 설치 명령 (grid 계정, racnode1):                                    ##
+##    export ORACLE_HOME=/u01/app/19.0.0/grid                                ##
+##    export ORACLE_BASE=/tmp                                                 ##
+##    $ORACLE_HOME/gridSetup.sh -silent                     \                ##
+##      -responseFile /tmp/gridSetup_rac.rsp                \                ##
+##      -applyRU /oracle_sw/patches/35643882                \                ##
+##      -ignorePrereqFailure                                                  ##
+################################################################################
+
+[GENERAL]
+INVENTORY_LOCATION=/u01/app/oraInventory
+SELECTED_LANGUAGES=en,ko
+
+[oracle.install.responseFileVersion]
+oracle.install.responseFileVersion=/oracle/install/rspfmt_crsinstall_response_schema_v19.0.0
+
+##── 설치 옵션 ────────────────────────────────────────────────────────────────
+oracle.install.option=CRS_CONFIG
+
+##── GI 홈 경로 ───────────────────────────────────────────────────────────────
+ORACLE_BASE=/u01/app/grid
+oracle.install.asm.ORACLE_HOME=/u01/app/19.0.0/grid
+oracle.install.asm.ORACLE_BASE=/u01/app/grid
+
+##── 클러스터 정보 ────────────────────────────────────────────────────────────
+oracle.install.crs.config.clusterName=raclab
+oracle.install.crs.config.scanName=raclab-scan
+oracle.install.crs.config.scanPort=1521
+oracle.install.crs.config.ClusterConfiguration=STANDALONE
+oracle.install.crs.config.configureAsExtendedCluster=false
+oracle.install.crs.config.gpnp.configureGNS=false
+oracle.install.crs.config.gpnp.gnsOption=CREATE_NEW_GNS
+oracle.install.crs.config.gpnp.gnsClientDataFile=
+oracle.install.crs.config.gpnp.gnsSubDomain=
+oracle.install.crs.config.gpnp.gnsVIPAddress=
+
+##── 노드 및 VIP ──────────────────────────────────────────────────────────────
+oracle.install.crs.config.clusterNodes=racnode1:racnode1-vip,racnode2:racnode2-vip
+
+##── 네트워크 인터페이스 ──────────────────────────────────────────────────────
+## role: 1=PUBLIC, 2=PRIVATE, 3=DO_NOT_USE
+oracle.install.crs.config.networkInterfaceList=eth1:192.168.56.0:1,eth2:192.168.57.0:2
+
+##── 스토리지 및 ASMFD ────────────────────────────────────────────────────────
+oracle.install.crs.config.storageOption=FLEX_ASM_STORAGE
+oracle.install.asm.configureASMFD=true
+
+##── GRID 디스크 그룹 (OCR + Voting) ─────────────────────────────────────────
+oracle.install.asm.diskGroup.name=GRID
+oracle.install.asm.diskGroup.redundancy=EXTERNAL
+oracle.install.asm.diskGroup.AUSize=4
+oracle.install.asm.diskGroup.disks=AFD:GRID_0001
+oracle.install.asm.diskGroup.diskDiscoveryString=AFD:*
+oracle.install.asm.monitorPassword=
+
+##── GIMR ─────────────────────────────────────────────────────────────────────
+oracle.install.crs.config.configureGIMR=false
+
+##── OS 권한 그룹 ─────────────────────────────────────────────────────────────
+oracle.install.asm.OSDBA=asmdba
+oracle.install.asm.OSOPER=asmoper
+oracle.install.asm.OSASM=asmadmin
+
+##── root.sh 자동 실행: false (Ansible 에서 순차 실행) ───────────────────────
+oracle.install.crs.rootconfig.executeRootScript=false
+oracle.install.crs.rootconfig.configMethod=ROOT
+
+##── IPMI / 기타 (미사용) ────────────────────────────────────────────────────
+oracle.install.crs.config.ipmi.bmcIP=
+oracle.install.crs.config.ipmi.bmcUsername=
+oracle.install.crs.config.ipmi.bmcPassword=
+oracle.install.crs.config.sharedFileSystemStorage.diskDriveMapping=
+oracle.install.crs.config.sharedFileSystemStorage.votingDiskLocations=
+oracle.install.crs.config.sharedFileSystemStorage.votingDiskRedundancy=EXTERNAL
+oracle.install.crs.config.sharedFileSystemStorage.ocrLocations=
+oracle.install.crs.config.clusterMembersAsString=

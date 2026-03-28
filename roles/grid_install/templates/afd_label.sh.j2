@@ -1,0 +1,42 @@
+#!/bin/bash
+# ======================================================================
+#  afd_label.sh – ASMFD 디스크 라벨링 스크립트 (참조/재실행용)
+#  자동 생성: Ansible afd_label.sh.j2 ({{ ansible_date_time.iso8601 }})
+#  실행: root 계정, racnode1 에서만
+# ======================================================================
+
+set -e
+
+ORACLE_HOME="{{ grid_home }}"
+ORACLE_BASE="/tmp"
+export ORACLE_HOME ORACLE_BASE
+export PATH="$ORACLE_HOME/bin:$PATH"
+
+echo "==> ASMFD 디스크 라벨링 시작"
+echo "    ORACLE_HOME: $ORACLE_HOME"
+echo ""
+
+# 기존 라벨 확인
+echo "==> 현재 AFD 라벨 목록:"
+asmcmd afd_lslbl 2>/dev/null || echo "    (라벨 없음)"
+echo ""
+
+{% for disk in afd_disks %}
+# ── {{ disk.label }} → {{ disk.device }} ──────────────────────────────────
+echo "==> 라벨링: {{ disk.label }} → {{ disk.device }}"
+
+if asmcmd afd_lslbl {{ disk.device }} 2>&1 | grep -q "{{ disk.label }}"; then
+  echo "    이미 라벨링됨 – 스킵"
+else
+  asmcmd afd_label {{ disk.label }} {{ disk.device }} --init 2>&1
+  echo "    라벨링 완료"
+fi
+
+{% endfor %}
+
+echo ""
+echo "==> 라벨링 후 AFD 전체 목록:"
+asmcmd afd_lslbl 2>&1
+
+echo ""
+echo "==> 완료"

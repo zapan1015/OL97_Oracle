@@ -1,0 +1,76 @@
+---
+# ======================================================================
+#  06_asmfd_label.yml – 공유 디스크 ASMFD 라벨링
+#  ⚠ racnode1 에서만 실행 (공유 iSCSI 디스크이므로 단일 노드 라벨링으로 충분)
+#  라벨 후 양 노드에서 asmcmd afd_lslbl 로 확인 가능
+#  실행: root, racnode1 only
+# ======================================================================
+
+- name: "[GI-06] 현재 AFD 라벨 목록 조회"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export ORACLE_BASE=/tmp
+    export PATH=$ORACLE_HOME/bin:$PATH
+    $ORACLE_HOME/bin/asmcmd afd_lslbl 2>&1 || true
+  register: afd_existing_labels
+  changed_when: false
+
+- name: "[GI-06] 기존 AFD 라벨 목록 출력"
+  ansible.builtin.debug:
+    msg: "기존 AFD 라벨: {{ afd_existing_labels.stdout_lines }}"
+
+# ── 각 디스크 라벨링 (afd_disks 변수 기반) ────────────────────────────
+- name: "[GI-06] ASMFD 라벨 설정 – {{ item.label }} → {{ item.device }}"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export ORACLE_BASE=/tmp
+    export PATH=$ORACLE_HOME/bin:$PATH
+
+    # 이미 라벨이 존재하면 스킵
+    if $ORACLE_HOME/bin/asmcmd afd_lslbl {{ item.device }} 2>&1 | grep -q "{{ item.label }}"; then
+      echo "LABEL_EXISTS:{{ item.label }}"
+      exit 0
+    fi
+
+    # 디스크 기존 데이터 초기화 후 라벨링 (--init 플래그)
+    $ORACLE_HOME/bin/asmcmd afd_label {{ item.label }} {{ item.device }} --init 2>&1
+    echo "LABEL_APPLIED:{{ item.label }}"
+  register: afd_label_result
+  changed_when: "'LABEL_APPLIED' in afd_label_result.stdout"
+  loop: "{{ afd_disks }}"
+
+- name: "[GI-06] 라벨링 결과 출력"
+  ansible.builtin.debug:
+    msg: "{{ item.stdout_lines }}"
+  loop: "{{ afd_label_result.results }}"
+  when: item.stdout_lines is defined
+
+# ── 라벨링 후 상태 검증 ───────────────────────────────────────────────
+- name: "[GI-06] 전체 AFD 라벨 목록 재확인"
+  ansible.builtin.shell: |
+    export ORACLE_HOME={{ grid_home }}
+    export ORACLE_BASE=/tmp
+    export PATH=$ORACLE_HOME/bin:$PATH
+    $ORACLE_HOME/bin/asmcmd afd_lslbl 2>&1
+  register: afd_all_labels
+  changed_when: false
+
+- name: "[GI-06] AFD 라벨 최종 목록"
+  ansible.builtin.debug:
+    msg: "{{ afd_all_labels.stdout_lines }}"
+
+- name: "[GI-06] 예상 라벨 존재 여부 검증"
+  ansible.builtin.assert:
+    that: item.label in afd_all_labels.stdout
+    fail_msg: "AFD 라벨 '{{ item.label }}' 을 찾을 수 없습니다!"
+    success_msg: "AFD 라벨 '{{ item.label }}' 확인 완료"
+  loop: "{{ afd_disks }}"
+
+# ── 스크립트 저장 (재라벨링 참조용) ──────────────────────────────────
+- name: "[GI-06] ASMFD 라벨링 스크립트 저장 (/tmp/afd_label.sh)"
+  ansible.builtin.template:
+    src: afd_label.sh.j2
+    dest: /tmp/afd_label.sh
+    owner: root
+    group: root
+    mode: '0750'

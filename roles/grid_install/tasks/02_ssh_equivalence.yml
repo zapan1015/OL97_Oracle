@@ -1,0 +1,137 @@
+---
+# ======================================================================
+#  02_ssh_equivalence.yml – SSH 등가성 (Equivalence) 구성
+#  Oracle GI Silent 설치 필수 조건:
+#    grid@racnode1 ↔ grid@racnode2  (소프트웨어 배포용)
+#    root@racnode1 ↔ root@racnode2  (root.sh 원격 실행 지원)
+#  실행: root, 양 노드 (racnodes)
+# ======================================================================
+
+# ── grid 사용자 SSH 키 생성 ────────────────────────────────────────────
+- name: "[GI-02] grid .ssh 디렉토리 생성"
+  ansible.builtin.file:
+    path: /home/grid/.ssh
+    state: directory
+    owner: "{{ grid_user }}"
+    group: oinstall
+    mode: '0700'
+
+- name: "[GI-02] grid SSH RSA 키 쌍 생성 (기존 키 보존)"
+  community.crypto.openssh_keypair:
+    path: /home/grid/.ssh/id_rsa
+    type: rsa
+    size: 4096
+    owner: "{{ grid_user }}"
+    group: oinstall
+    comment: "grid@{{ inventory_hostname }}"
+    force: false
+  register: grid_keypair
+
+- name: "[GI-02] grid 공개 키 읽기"
+  ansible.builtin.slurp:
+    src: /home/grid/.ssh/id_rsa.pub
+  register: grid_pub_raw
+
+- name: "[GI-02] grid 공개 키 팩트 저장"
+  ansible.builtin.set_fact:
+    grid_pub_key: "{{ grid_pub_raw.content | b64decode | trim }}"
+
+# ── root 사용자 SSH 키 생성 ────────────────────────────────────────────
+- name: "[GI-02] root .ssh 디렉토리 생성"
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: "[GI-02] root SSH RSA 키 쌍 생성 (기존 키 보존)"
+  community.crypto.openssh_keypair:
+    path: /root/.ssh/id_rsa
+    type: rsa
+    size: 4096
+    owner: root
+    group: root
+    comment: "root@{{ inventory_hostname }}"
+    force: false
+  register: root_keypair
+
+- name: "[GI-02] root 공개 키 읽기"
+  ansible.builtin.slurp:
+    src: /root/.ssh/id_rsa.pub
+  register: root_pub_raw
+
+- name: "[GI-02] root 공개 키 팩트 저장"
+  ansible.builtin.set_fact:
+    root_pub_key: "{{ root_pub_raw.content | b64decode | trim }}"
+
+# ── 공개 키 교차 배포 (모든 racnode의 키 → 모든 racnode의 authorized_keys) ──
+- name: "[GI-02] grid authorized_keys – 모든 노드 공개 키 등록"
+  ansible.posix.authorized_key:
+    user: "{{ grid_user }}"
+    key: "{{ hostvars[item]['grid_pub_key'] }}"
+    state: present
+  loop: "{{ groups['racnodes'] }}"
+  when: hostvars[item]['grid_pub_key'] is defined
+
+- name: "[GI-02] root authorized_keys – 모든 노드 공개 키 등록"
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ hostvars[item]['root_pub_key'] }}"
+    state: present
+  loop: "{{ groups['racnodes'] }}"
+  when: hostvars[item]['root_pub_key'] is defined
+
+# ── known_hosts 등록 (host key scanning) ──────────────────────────────
+- name: "[GI-02] grid known_hosts 파일 초기화 (없으면 생성)"
+  ansible.builtin.file:
+    path: /home/grid/.ssh/known_hosts
+    state: touch
+    owner: "{{ grid_user }}"
+    group: oinstall
+    mode: '0600'
+    modification_time: preserve
+    access_time: preserve
+
+- name: "[GI-02] grid known_hosts – 피어 노드 호스트 키 등록"
+  ansible.builtin.shell: |
+    if ! ssh-keygen -F {{ item }} &>/dev/null; then
+      ssh-keyscan -t rsa,ecdsa {{ item }} >> /home/grid/.ssh/known_hosts 2>/dev/null
+    fi
+  loop: "{{ groups['racnodes'] }}"
+  become_user: root
+  changed_when: false
+
+- name: "[GI-02] root known_hosts – 피어 노드 호스트 키 등록"
+  ansible.builtin.shell: |
+    if ! ssh-keygen -F {{ item }} &>/dev/null; then
+      ssh-keyscan -t rsa,ecdsa {{ item }} >> /root/.ssh/known_hosts 2>/dev/null
+    fi
+  loop: "{{ groups['racnodes'] }}"
+  changed_when: false
+
+- name: "[GI-02] known_hosts 소유자 재설정"
+  ansible.builtin.file:
+    path: /home/grid/.ssh/known_hosts
+    owner: "{{ grid_user }}"
+    group: oinstall
+    mode: '0600'
+
+# ── SSH 등가성 검증 ───────────────────────────────────────────────────
+- name: "[GI-02] grid SSH 등가성 검증 (각 노드에서 피어로 접속 테스트)"
+  ansible.builtin.shell: |
+    ssh -o BatchMode=yes -o ConnectTimeout=10 \
+        -o StrictHostKeyChecking=no \
+        grid@{{ item }} "hostname" 2>&1
+  become_user: "{{ grid_user }}"
+  loop: "{{ groups['racnodes'] }}"
+  when: item != inventory_hostname
+  register: ssh_test
+  changed_when: false
+  failed_when: ssh_test.rc != 0
+
+- name: "[GI-02] SSH 등가성 검증 결과 출력"
+  ansible.builtin.debug:
+    msg: "grid@{{ inventory_hostname }} → {{ item.item }}: {{ item.stdout | trim }}"
+  loop: "{{ ssh_test.results }}"
+  when: item.rc is defined

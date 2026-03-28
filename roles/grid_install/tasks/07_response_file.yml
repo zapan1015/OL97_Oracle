@@ -1,0 +1,53 @@
+---
+# ======================================================================
+#  07_response_file.yml – gridSetup_rac.rsp 응답 파일 생성
+#  Silent Mode 설치의 핵심: 모든 설치 파라미터를 응답 파일로 정의
+#  실행: grid 사용자, racnode1 only
+# ======================================================================
+
+- name: "[GI-07] 응답 파일 템플릿 배포 → {{ gi_rsp_file }}"
+  ansible.builtin.template:
+    src: gridSetup_rac.rsp.j2
+    dest: "{{ gi_rsp_file }}"
+    owner: "{{ grid_user }}"
+    group: oinstall
+    mode: '0600'     # Silent install rsp – 보안상 600 필수
+  become: yes
+  become_user: root  # template 배포는 root, 소유자를 grid로 설정
+
+- name: "[GI-07] 응답 파일 주요 파라미터 확인 (민감 항목 제외)"
+  ansible.builtin.shell: |
+    grep -E "^oracle\.install\.(option|crs\.config\.(clusterName|scanName|clusterNodes|networkInterfaceList))|^oracle\.install\.asm\.(diskGroup|configureASMFD)|ORACLE_BASE|INVENTORY" \
+      {{ gi_rsp_file }} 2>/dev/null | grep -v "^#"
+  register: rsp_summary
+  changed_when: false
+
+- name: "[GI-07] 응답 파일 설정 요약 출력"
+  ansible.builtin.debug:
+    msg: "{{ rsp_summary.stdout_lines }}"
+
+- name: "[GI-07] RU 패치 경로 확인"
+  ansible.builtin.stat:
+    path: "{{ grid_ru_patch_dir }}"
+  register: ru_patch_stat
+  when: grid_ru_patch_dir != ""
+
+- name: "[GI-07] RU 패치 경고 출력"
+  ansible.builtin.debug:
+    msg: |
+      ⚠ WARNING: grid_ru_patch_dir 가 지정되지 않았습니다.
+      Oracle Linux 9 에서 Oracle 19c 19.3 기본 바이너리는 설치 실패할 수 있습니다.
+      반드시 19.19+ RU (권장: 19.26) 패치를 oracle/patches/ 에 배치하고
+      inventories/vagrant/group_vars/racnodes.yml 의 grid_ru_patch_dir 를 지정하십시오.
+      예: grid_ru_patch_dir: "/oracle_sw/patches/35643882"
+  when: grid_ru_patch_dir == ""
+
+- name: "[GI-07] RU 패치 경로 없음 오류"
+  ansible.builtin.fail:
+    msg: |
+      grid_ru_patch_dir 가 지정되었으나 경로가 존재하지 않습니다:
+        {{ grid_ru_patch_dir }}
+      oracle/patches/ 에 RU 패치 압축 해제 후 재실행하십시오.
+  when:
+    - grid_ru_patch_dir != ""
+    - not ru_patch_stat.stat.exists
