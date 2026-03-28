@@ -78,6 +78,32 @@ oracle_install/
 oracle_media/
 swlib/
 
+# ── Oracle 설치 파일/디렉토리 예외 (git 추적 허용) ──────────────────────
+# oracle/ 디렉토리 자체 및 메타 파일 허용
+!oracle/
+!oracle/.gitkeep
+!oracle/README*
+!oracle/readme*
+
+# 설치 응답 파일 (silent install용) – 민감 정보 없을 경우 허용
+!oracle/*.rsp
+!oracle/response/
+!oracle/response/*.rsp
+
+# 설치 스크립트 / 설정 파일 허용
+!oracle/*.sh
+!oracle/*.cfg
+!oracle/*.conf
+!oracle/*.ini
+!oracle/*.env.example     # 실제 .env 는 제외, 예시 파일만 허용
+
+# 패치 목록 / 메타데이터 (바이너리 아닌 텍스트) 허용
+!oracle/*.txt
+!oracle/*.md
+!oracle/patches/
+!oracle/patches/*.txt
+!oracle/patches/*.md
+
 # ── 로그 / 임시 파일 ───────────────────────────────────────────────────
 *.log
 *.tmp
